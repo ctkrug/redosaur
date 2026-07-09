@@ -67,3 +67,12 @@ pub fn run_chunk(pattern: &str, input: &str, budget: u32) -> Result<ChunkResult,
         truncated: trace.truncated,
     })
 }
+
+/// Parses `pattern` and generates a worst-case input of `reps` repetitions
+/// of its adversarial unit, for the UI to display and feed into
+/// [`run_chunk`].
+#[wasm_bindgen]
+pub fn worst_case_input(pattern: &str, reps: u32) -> Result<String, JsValue> {
+    let ast = parser::parse(pattern).map_err(parse_error_to_js)?;
+    Ok(redosaur_core::generator::worst_case(&ast, reps as usize))
+}
