@@ -485,6 +485,33 @@ mod tests {
     }
 
     #[test]
+    fn non_capturing_group_parses_like_a_capturing_group() {
+        assert_eq!(parse("(?:a|b)").unwrap(), parse("(a|b)").unwrap());
+    }
+
+    #[test]
+    fn non_capturing_group_quantifier_still_binds_to_the_group() {
+        assert_eq!(
+            parse("(?:ab)+").unwrap(),
+            Ast::Repeat {
+                node: Box::new(Ast::Group(Box::new(Ast::Concat(vec![
+                    Ast::Literal('a'),
+                    Ast::Literal('b')
+                ])))),
+                min: 1,
+                max: None,
+            }
+        );
+    }
+
+    #[test]
+    fn unsupported_group_extension_is_a_parse_error() {
+        assert!(parse("(?=a)").is_err());
+        assert!(parse("(?!a)").is_err());
+        assert!(parse("(?i)a").is_err());
+    }
+
+    #[test]
     fn unmatched_close_paren_is_a_parse_error() {
         assert!(parse("a)").is_err());
     }
@@ -699,6 +726,7 @@ mod tests {
     fn to_pattern_round_trips_through_parse() {
         for pattern in [
             "a", "ab", "a|b", "a*", "a+", "a?", "a{3}", "a{2,}", "a{1,20}", "(ab)+", "(a|b)*",
+            "(?:ab)+",
             "[a-z]+", "^a$",
         ] {
             let ast = parse(pattern).unwrap();
