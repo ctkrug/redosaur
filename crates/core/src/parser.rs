@@ -123,12 +123,44 @@ impl Parser {
             if c == '|' || c == ')' {
                 break;
             }
-            nodes.push(self.parse_atom()?);
+            nodes.push(self.parse_quantified_atom()?);
         }
         match nodes.len() {
             0 => Ok(Ast::Empty),
             1 => Ok(nodes.into_iter().next().unwrap()),
             _ => Ok(Ast::Concat(nodes)),
+        }
+    }
+
+    /// An atom optionally followed by a `*`/`+`/`?` quantifier.
+    fn parse_quantified_atom(&mut self) -> Result<Ast, ParseError> {
+        let atom = self.parse_atom()?;
+        match self.peek() {
+            Some('*') => {
+                self.advance();
+                Ok(Ast::Repeat {
+                    node: Box::new(atom),
+                    min: 0,
+                    max: None,
+                })
+            }
+            Some('+') => {
+                self.advance();
+                Ok(Ast::Repeat {
+                    node: Box::new(atom),
+                    min: 1,
+                    max: None,
+                })
+            }
+            Some('?') => {
+                self.advance();
+                Ok(Ast::Repeat {
+                    node: Box::new(atom),
+                    min: 0,
+                    max: Some(1),
+                })
+            }
+            _ => Ok(atom),
         }
     }
 
@@ -144,6 +176,9 @@ impl Parser {
                 Ok(Ast::Group(Box::new(inner)))
             }
             Some(')') => Err(self.error("unexpected ')' with no matching '('")),
+            Some('*') | Some('+') | Some('?') => {
+                Err(self.error("dangling quantifier with no preceding atom"))
+            }
             Some(c) => {
                 self.advance();
                 Ok(Ast::Literal(c))
@@ -212,5 +247,62 @@ mod tests {
     #[test]
     fn unmatched_close_paren_is_a_parse_error() {
         assert!(parse("a)").is_err());
+    }
+
+    #[test]
+    fn star_quantifier_allows_zero_or_more() {
+        assert_eq!(
+            parse("a*").unwrap(),
+            Ast::Repeat {
+                node: Box::new(Ast::Literal('a')),
+                min: 0,
+                max: None,
+            }
+        );
+    }
+
+    #[test]
+    fn plus_quantifier_requires_at_least_one() {
+        assert_eq!(
+            parse("a+").unwrap(),
+            Ast::Repeat {
+                node: Box::new(Ast::Literal('a')),
+                min: 1,
+                max: None,
+            }
+        );
+    }
+
+    #[test]
+    fn question_quantifier_is_zero_or_one() {
+        assert_eq!(
+            parse("a?").unwrap(),
+            Ast::Repeat {
+                node: Box::new(Ast::Literal('a')),
+                min: 0,
+                max: Some(1),
+            }
+        );
+    }
+
+    #[test]
+    fn quantifier_binds_to_a_group() {
+        assert_eq!(
+            parse("(ab)+").unwrap(),
+            Ast::Repeat {
+                node: Box::new(Ast::Group(Box::new(Ast::Concat(vec![
+                    Ast::Literal('a'),
+                    Ast::Literal('b')
+                ])))),
+                min: 1,
+                max: None,
+            }
+        );
+    }
+
+    #[test]
+    fn dangling_quantifier_is_a_parse_error() {
+        assert!(parse("*a").is_err());
+        assert!(parse("+").is_err());
     }
 }
