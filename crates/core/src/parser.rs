@@ -382,9 +382,28 @@ impl Parser {
     }
 }
 
+/// Hard cap on total pattern length. `engine::match_concat` recurses one
+/// native stack frame per sibling in a `Concat`, so a long flat pattern
+/// with no groups at all (e.g. a few thousand literal characters pasted
+/// in by accident) can still blow the stack even with [`MAX_GROUP_DEPTH`]
+/// in place, since it never nests a single group. 1,000 chars is far
+/// beyond any realistic hand-written or generated regex while leaving a
+/// wide margin under the overflow threshold (measured empirically between
+/// 8,000 and 10,000 literal chars on a native debug build, which has
+/// larger stack frames than an optimized WASM build would).
+const MAX_PATTERN_LENGTH: usize = 1_000;
+
 /// Parse a regex pattern into an [`Ast`].
 pub fn parse(pattern: &str) -> Result<Ast, ParseError> {
     let mut parser = Parser::new(pattern);
+    if parser.chars.len() > MAX_PATTERN_LENGTH {
+        return Err(ParseError {
+            message: format!(
+                "pattern exceeds the maximum supported length of {MAX_PATTERN_LENGTH} characters"
+            ),
+            position: MAX_PATTERN_LENGTH,
+        });
+    }
     let ast = parser.parse_alternation()?;
     if parser.pos != parser.chars.len() {
         return Err(parser.error("unexpected trailing input"));
@@ -561,6 +580,28 @@ mod tests {
     fn nesting_one_past_the_depth_limit_is_a_parse_error() {
         let depth = 251;
         let pattern = "(".repeat(depth) + "a" + &")".repeat(depth);
+        assert!(parse(&pattern).is_err());
+    }
+
+    #[test]
+    fn excessively_long_flat_pattern_is_a_parse_error_not_a_stack_overflow() {
+        // A long flat pattern with no groups at all never trips the group
+        // depth cap, but `engine::match_concat` still recurses one native
+        // stack frame per literal — this used to blow the stack well
+        // before 10,000 chars instead of failing cleanly.
+        let pattern = "a".repeat(50_000);
+        assert!(parse(&pattern).is_err());
+    }
+
+    #[test]
+    fn pattern_at_the_length_limit_still_parses() {
+        let pattern = "a".repeat(1_000);
+        assert!(parse(&pattern).is_ok());
+    }
+
+    #[test]
+    fn pattern_one_past_the_length_limit_is_a_parse_error() {
+        let pattern = "a".repeat(1_001);
         assert!(parse(&pattern).is_err());
     }
 
