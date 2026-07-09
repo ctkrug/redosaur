@@ -9,7 +9,7 @@ before anything optional gets built.
 
 ## Epic 1 — Core Engine & Wow-Moment Demo
 
-- [ ] **1.1 — Live catastrophic-backtracking demo for a canonical pathological pattern (WOW MOMENT)**
+- [x] **1.1 — Live catastrophic-backtracking demo for a canonical pathological pattern (WOW MOMENT)**
   - A one-click preset (e.g. "try `(a+)+`") on first load runs the instrumented engine against a
     crafted worst-case input with zero typing required.
   - The step counter displayed climbs past 1,000,000 for this preset, and a core-crate test
@@ -33,7 +33,7 @@ before anything optional gets built.
   - A test pattern with 3 nested quantifiers against a crafted worst-case input exceeds 100,000
     counted steps, confirming real backtracking (not a shortcut) is happening.
 
-- [ ] **1.4 — WASM bridge exposes chunked parse+run to JS**
+- [x] **1.4 — WASM bridge exposes chunked parse+run to JS**
   - `redosaur-wasm` exposes a function that parses a pattern and runs the engine against a given
     input up to a per-call step budget, returning `{ steps_so_far, matched, truncated }` so JS
     can call it repeatedly across animation frames instead of blocking the main thread.
@@ -65,7 +65,7 @@ before anything optional gets built.
     Safe; a bounded-repetition case (e.g. `a{1,20}`) classifies Safe or Suspicious, never
     Catastrophic.
 
-- [ ] **2.4 — Risk gauge and live trace UI**
+- [x] **2.4 — Risk gauge and live trace UI**
   - The site renders a Safe/Suspicious/Catastrophic gauge driven by the WASM analyzer's live
     classification, using `docs/DESIGN.md`'s green/amber/red tokens and escalation pulse.
   - Pasting any of the 4 canonical pathological patterns and hitting "run" shows the worst-case
