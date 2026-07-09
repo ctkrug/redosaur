@@ -67,12 +67,13 @@ impl std::error::Error for ParseError {}
 
 /// Recursive-descent parser over a regex pattern's chars.
 ///
-/// Grammar (quantifiers, character classes, anchors land in follow-up
-/// commits per docs/BACKLOG.md 1.2):
+/// Grammar:
 /// ```text
 /// alternation := concat ('|' concat)*
-/// concat      := atom*
-/// atom        := literal | '(' alternation ')'
+/// concat      := quantified_atom*
+/// quantified_atom := atom ('*' | '+' | '?' | '{' m (',' n?)? '}')?
+/// atom        := literal | '(' alternation ')' | '[' class_item* ']'
+///              | '^' | '$' | '.' | '\' escape
 /// ```
 struct Parser {
     chars: Vec<char>,
