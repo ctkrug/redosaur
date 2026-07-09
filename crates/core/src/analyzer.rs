@@ -1,7 +1,27 @@
 //! ReDoS risk analysis: combines AST ambiguity detection with the
 //! instrumented engine's measured step growth to classify risk.
 
+use crate::engine;
+use crate::generator;
 use crate::parser::Ast;
+
+/// Input lengths (repetitions of the generated worst-case unit) probed
+/// when measuring step growth. Three points are enough to distinguish
+/// "grows a bit" from "grows explosively" without spending too many steps
+/// on patterns that turn out to be safe.
+const PROBE_LENGTHS: [usize; 3] = [8, 16, 24];
+
+/// Step ceiling used while probing growth — high enough that a truly
+/// catastrophic pattern blows straight through it (an unambiguous signal),
+/// but bounded so classification itself can never hang.
+const PROBE_CEILING: u64 = 2_000_000;
+
+/// A growth ratio (last probe's steps / first probe's steps) above this
+/// is treated as exponential/high-polynomial blowup.
+const CATASTROPHIC_GROWTH: f64 = 4.0;
+/// A growth ratio above this (but below [`CATASTROPHIC_GROWTH`]) is
+/// treated as worth a second look rather than dismissed as safe.
+const SUSPICIOUS_GROWTH: f64 = 1.5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Risk {
@@ -56,12 +76,36 @@ pub fn has_ambiguous_repeat(ast: &Ast) -> bool {
 
 /// Classify the ReDoS risk of `ast`.
 ///
-/// Structural-only for now: [`Risk::Suspicious`] if an ambiguous repeat is
-/// present, [`Risk::Safe`] otherwise. Growth measurement (confirming
-/// Catastrophic empirically rather than by shape alone) lands in the next
-/// commit per docs/BACKLOG.md 2.3.
+/// Structural ambiguity (`has_ambiguous_repeat`) seeds *candidates* — it
+/// never classifies on its own. The verdict comes from actually running
+/// the instrumented engine against generated worst-case inputs at
+/// increasing lengths and measuring how steeply the step count grows:
+/// that's what makes the result trustworthy rather than pattern-matched
+/// (docs/VISION.md).
 pub fn classify(ast: &Ast) -> Risk {
-    if has_ambiguous_repeat(ast) {
+    if !has_ambiguous_repeat(ast) {
+        return Risk::Safe;
+    }
+
+    let mut steps = Vec::with_capacity(PROBE_LENGTHS.len());
+    for &len in &PROBE_LENGTHS {
+        let input = generator::worst_case(ast, len);
+        let trace = engine::run_with_ceiling(ast, &input, PROBE_CEILING);
+        if trace.truncated {
+            // Hit the ceiling before even reaching a verdict — an
+            // unambiguous sign of catastrophic blowup.
+            return Risk::Catastrophic;
+        }
+        steps.push(trace.steps);
+    }
+
+    let first = steps.first().copied().unwrap_or(1).max(1);
+    let last = steps.last().copied().unwrap_or(1);
+    let growth = last as f64 / first as f64;
+
+    if growth > CATASTROPHIC_GROWTH {
+        Risk::Catastrophic
+    } else if growth > SUSPICIOUS_GROWTH {
         Risk::Suspicious
     } else {
         Risk::Safe
@@ -117,5 +161,35 @@ mod tests {
     #[test]
     fn grouped_concat_plus_is_not_flagged() {
         assert!(!has_ambiguous_repeat(&parse("(ab)+").unwrap()));
+    }
+
+    #[test]
+    fn pathological_patterns_classify_catastrophic() {
+        for pattern in ["(a+)+", "(a*)*", "(a+)*", "(a|a)*"] {
+            let ast = parse(pattern).unwrap();
+            assert_eq!(
+                classify(&ast),
+                Risk::Catastrophic,
+                "expected {pattern} to classify Catastrophic"
+            );
+        }
+    }
+
+    #[test]
+    fn safe_patterns_classify_safe() {
+        for pattern in ["a+", "[a-z]+", "(ab)+"] {
+            let ast = parse(pattern).unwrap();
+            assert_eq!(
+                classify(&ast),
+                Risk::Safe,
+                "expected {pattern} to classify Safe"
+            );
+        }
+    }
+
+    #[test]
+    fn bounded_repetition_never_classifies_catastrophic() {
+        let ast = parse("a{1,20}").unwrap();
+        assert_ne!(classify(&ast), Risk::Catastrophic);
     }
 }
