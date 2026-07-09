@@ -85,12 +85,17 @@ branch). `Counters` tracks the step count and a hard ceiling (`DEFAULT_STEP_CEIL
 
 ## The analyzer (`analyzer.rs`)
 
-`has_ambiguous_repeat` is a structural pre-filter (nested quantifiers like `(a+)+`/`(a*)*`, or a
-repeat over an alternation with structurally-equal branches like `(a|a)*`) that seeds
-*candidates* — it never classifies on its own. `classify` only runs the engine (against
-`generator::worst_case` inputs at 3 increasing lengths) when the pre-filter flags something,
-and the verdict comes from the measured growth ratio between the shortest and longest probe,
-not from the shape alone.
+`has_ambiguous_repeat` is a structural pre-filter that seeds *candidates* — it never classifies
+on its own. `classify` only runs the engine (against `generator::worst_case` inputs at 3
+increasing lengths) when the pre-filter flags something, and the verdict comes from the measured
+growth ratio between the shortest and longest probe, not from the shape alone — so a structural
+false positive in the pre-filter only costs one extra bounded engine run, never a wrong verdict.
+The pre-filter flags: nested quantifiers like `(a+)+`/`(a*)*`; a repeat over an alternation with
+structurally-equal branches like `(a|a)*`; and, via `has_variable_length_repeat`, *any*
+variable-length (`min != max`) sub-repeat anywhere inside the outer repeat's body, even buried in
+a `Concat` alongside other elements — e.g. `(\w+\s?)*` (docs/VISION.md's own canonical example),
+where `\w+` isn't the outer repeat's direct child but still lets a run of word characters split
+across outer iterations exponentially many ways.
 
 ## Grammar support & known limits (`parser.rs`)
 
