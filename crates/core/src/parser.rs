@@ -418,9 +418,9 @@ fn render_char_class(class: &CharClass) -> String {
     if class.negated {
         out.push('^');
     }
-    for &(lo, hi) in &class.ranges {
+    for (i, &(lo, hi)) in class.ranges.iter().enumerate() {
         if lo == hi {
-            out.push(lo);
+            out.push_str(&render_class_member(lo, i == 0));
         } else {
             out.push(lo);
             out.push('-');
@@ -429,6 +429,17 @@ fn render_char_class(class: &CharClass) -> String {
     }
     out.push(']');
     out
+}
+
+/// Escapes a single-char class member that would otherwise be misread as
+/// class syntax on re-parse: `]` closes the class, `\` starts an escape,
+/// `-` forms a range with its neighbor, and a leading `^` marks negation.
+fn render_class_member(c: char, is_first: bool) -> String {
+    if c == ']' || c == '\\' || c == '-' || (c == '^' && is_first) {
+        format!("\\{c}")
+    } else {
+        c.to_string()
+    }
 }
 
 /// A concat member needs grouping only if it's an alternation — otherwise
@@ -799,6 +810,10 @@ mod tests {
         for pattern in [
             "a", "ab", "a|b", "a*", "a+", "a?", "a{3}", "a{2,}", "a{1,20}", "(ab)+", "(a|b)*",
             "(?:ab)+", "[a-z]+", "^a$",
+            // Literal ']', '\', '-', and a leading '^' as class members —
+            // each would be misread as class syntax (close/escape/range/
+            // negation) if to_pattern didn't re-escape them.
+            r"[\]a]", r"[a\\b]", r"[a\-z]", r"[\^ab]",
         ] {
             let ast = parse(pattern).unwrap();
             let rendered = to_pattern(&ast);
