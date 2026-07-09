@@ -17,7 +17,7 @@ before anything optional gets built.
   - The counter visibly animates over at least ~1 second (not an instant jump to the final
     number) so the blowup is felt, not just reported.
 
-- [ ] **1.2 — Full regex grammar in the parser**
+- [x] **1.2 — Full regex grammar in the parser**
   - `parser::parse` supports literals, concatenation, alternation (`|`), quantifiers (`*`, `+`,
     `?`, `{m,n}`), groups `()`, character classes `[...]`, and anchors (`^`, `$`).
   - Unit tests cover at least one pattern per construct listed above, all passing.
