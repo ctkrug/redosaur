@@ -559,6 +559,18 @@ mod tests {
     }
 
     #[test]
+    fn parse_error_displays_position_and_message() {
+        // The site surfaces this Display output directly as the on-page
+        // error text (crates/wasm calls ParseError::to_string()), so its
+        // exact format is user-facing, not just internal debug output.
+        let err = parse("(a").unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "parse error at 2: unbalanced parenthesis: expected ')'"
+        );
+    }
+
+    #[test]
     fn excessive_group_nesting_is_a_parse_error_not_a_stack_overflow() {
         // A pathological pattern like this used to blow the native stack
         // (empirically, well before 3,000 levels of nesting) instead of
@@ -777,6 +789,11 @@ mod tests {
     }
 
     #[test]
+    fn out_of_order_char_class_range_is_a_parse_error() {
+        assert!(parse("[z-a]").is_err());
+    }
+
+    #[test]
     fn char_class_negation() {
         assert_eq!(
             parse("[^0-9]").unwrap(),
@@ -912,6 +929,17 @@ mod tests {
     }
 
     #[test]
+    fn negated_whitespace_shorthand_class() {
+        let ast = parse(r"\S").unwrap();
+        let Ast::CharClass(class) = ast else {
+            panic!("expected a CharClass");
+        };
+        assert!(!class.matches(' '));
+        assert!(!class.matches('\t'));
+        assert!(class.matches('a'));
+    }
+
+    #[test]
     fn escaped_metachar_is_a_literal() {
         assert_eq!(parse(r"\.").unwrap(), Ast::Literal('.'));
         assert_eq!(parse(r"\+").unwrap(), Ast::Literal('+'));
@@ -925,8 +953,12 @@ mod tests {
     #[test]
     fn to_pattern_round_trips_through_parse() {
         for pattern in [
-            "a", "ab", "a|b", "a*", "a+", "a?", "a{3}", "a{2,}", "a{1,20}", "(ab)+", "(a|b)*",
+            "", "a", "ab", "a|b", "a*", "a+", "a?", "a{3}", "a{2,}", "a{1,20}", "(ab)+", "(a|b)*",
             "(?:ab)+", "[a-z]+", "^a$",
+            // A general negated class (distinct from the '.' special case
+            // covered by to_pattern_renders_dot_from_negated_newline_class
+            // below), to exercise negation rendering on its own.
+            "[^0-9]",
             // Literal ']', '\', '-', and a leading '^' as class members —
             // each would be misread as class syntax (close/escape/range/
             // negation) if to_pattern didn't re-escape them.
