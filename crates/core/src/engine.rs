@@ -113,7 +113,9 @@ fn match_node(
             }
             false
         }
-        Ast::Repeat { node, min, max } => match_repeat(node, *min, *max, 0, input, pos, counters, k),
+        Ast::Repeat { node, min, max } => {
+            match_repeat(node, *min, *max, 0, input, pos, counters, k)
+        }
     }
 }
 
@@ -121,6 +123,7 @@ fn match_node(
 /// falling through to `k`, backtracking one repetition at a time when the
 /// continuation fails — this is exactly the behavior that makes nested
 /// quantifiers like `(a+)+` explore an exponential number of groupings.
+#[allow(clippy::too_many_arguments)]
 fn match_repeat(
     node: &Ast,
     min: u32,
@@ -134,7 +137,7 @@ fn match_repeat(
     if counters.tick() {
         return false;
     }
-    let can_repeat_more = max.map_or(true, |m| count < m);
+    let can_repeat_more = max.is_none_or(|m| count < m);
     if can_repeat_more {
         let matched_more = match_node(node, input, pos, counters, &|p, c| {
             if p == pos {
@@ -170,11 +173,9 @@ fn match_concat(
 ) -> bool {
     match nodes.split_first() {
         None => k(pos, counters),
-        Some((first, rest)) => {
-            match_node(first, input, pos, counters, &|p, c| {
-                match_concat(rest, input, p, c, k)
-            })
-        }
+        Some((first, rest)) => match_node(first, input, pos, counters, &|p, c| {
+            match_concat(rest, input, p, c, k)
+        }),
     }
 }
 
