@@ -219,6 +219,15 @@ footer {
   text-align: center;
 }
 
+footer p {
+  margin: 0;
+}
+
+.footer__portfolio {
+  margin-top: var(--space-1);
+  opacity: 0.85;
+}
+
 footer a {
   color: var(--text-muted);
 }
@@ -228,11 +237,115 @@ footer a:focus-visible {
   color: var(--accent);
 }
 
+/* --- Below-the-fold: about + FAQ (SEO copy) --------------------------- */
+
+.about {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.about__col {
+  min-width: 0;
+}
+
+.about__title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--text);
+  margin: 0 0 var(--space-2);
+}
+
+.about__col .about__title:not(:first-child) {
+  margin-top: var(--space-4);
+}
+
+.about p {
+  color: var(--text-muted);
+  max-width: 68ch;
+  margin: 0 0 var(--space-2);
+}
+
+.about code {
+  color: var(--accent);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 0 4px;
+  font-size: 0.85em;
+}
+
+.faq {
+  margin: 0;
+}
+
+.faq dt {
+  color: var(--text);
+  font-weight: 500;
+  margin-top: var(--space-3);
+}
+
+.faq dt:first-child {
+  margin-top: 0;
+}
+
+.faq dd {
+  color: var(--text-muted);
+  margin: var(--space-1) 0 0;
+}
+
+@media (max-width: 900px) {
+  .about {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+}
+
 button,
 select,
 input,
 textarea {
   font-family: var(--font-ui);
+}
+
+.topbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.ghlink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.ghlink:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.ghlink:focus-visible {
+  outline: none;
+  color: var(--text);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(57, 255, 106, 0.25);
+}
+
+.ghlink:active {
+  transform: translateY(1px);
 }
 
 .mute-toggle {

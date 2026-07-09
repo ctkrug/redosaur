@@ -3,11 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReDoSaur — watch a regex explode</title>
+  <title>ReDoSaur — See which regex can hang your server</title>
   <meta
     name="description"
-    content="Paste a regex and watch an instrumented backtracking engine prove catastrophic ReDoS risk in real time — then suggests a safe rewrite."
+    content="Paste a regex; ReDoSaur runs a real backtracking engine to prove catastrophic ReDoS risk with a live step counter, then suggests a safe rewrite."
   />
+  <meta property="og:title" content="ReDoSaur — See which regex can hang your server" />
+  <meta
+    property="og:description"
+    content="Paste a regex and watch a real backtracking engine prove ReDoS risk with a live step counter, then suggest a safe rewrite. Runs entirely in your browser."
+  />
+  <meta property="og:type" content="website" />
   <link
     rel="icon"
     type="image/svg+xml"
@@ -35,31 +41,46 @@
       </svg>
       ReDoSaur
     </a>
-    <button
-      class="mute-toggle"
-      type="button"
-      id="mute-toggle"
-      aria-pressed="false"
-      aria-label="Mute sound effects"
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none">
-        <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
-        <path
-          d="M16 8a5 5 0 0 1 0 8"
-          stroke="currentColor"
-          stroke-width="1.6"
-          fill="none"
-          stroke-linecap="round"
-        />
-      </svg>
-    </button>
+    <div class="topbar__actions">
+      <a
+        class="ghlink"
+        href="https://github.com/ctkrug/redosaur"
+        target="_blank"
+        rel="noopener"
+      >
+        <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+          <path
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"
+          />
+        </svg>
+        <span>GitHub</span>
+      </a>
+      <button
+        class="mute-toggle"
+        type="button"
+        id="mute-toggle"
+        aria-pressed="false"
+        aria-label="Mute sound effects"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none">
+          <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
+          <path
+            d="M16 8a5 5 0 0 1 0 8"
+            stroke="currentColor"
+            stroke-width="1.6"
+            fill="none"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </div>
   </header>
 
   <main>
     <h1 class="tagline">Paste a regex. Watch it <em>explode</em>.</h1>
     <p class="lede">
-      ReDoSaur runs your pattern through an actual instrumented backtracking engine — not a
-      heuristic linter — counts every real backtracking step, generates a genuine worst-case
+      ReDoSaur runs your pattern through an actual instrumented backtracking engine, not a
+      heuristic linter. It counts every real backtracking step, generates a genuine worst-case
       input, and shows the exponential blowup as a live counter, with a risk verdict backed by
       measured step growth, not just how the pattern looks.
     </p>
@@ -118,7 +139,7 @@
         </div>
         <p class="rail__hint">
           ReDoSaur parses each pattern into a real AST and runs it through an instrumented
-          backtracking engine — the same evaluation strategy PCRE, Python, and JavaScript use.
+          backtracking engine, the same evaluation strategy PCRE, Python, and JavaScript use.
         </p>
 
         <div class="fix-panel" id="fix-panel" hidden>
@@ -135,14 +156,14 @@
               <span class="fix-trace__steps" id="fix-after-steps">0</span>
             </div>
             <p class="fix-confirm" id="fix-confirm" role="status" aria-live="polite" hidden>
-              &#10003; Fix confirmed — blowup eliminated
+              &#10003; Fix confirmed: blowup eliminated
             </p>
           </div>
           <div class="fix-empty" id="fix-empty" hidden>
             <p class="fix-empty__title">No automated fix yet</p>
             <p class="fix-empty__hint">
               Detection succeeded, but this pattern's ambiguity doesn't match a known rewrite
-              rule (nested quantifiers, duplicate alternation branches) — those are the only
+              rule (nested quantifiers, duplicate alternation branches). Those are the only
               shapes ReDoSaur can safely rewrite so far.
             </p>
           </div>
@@ -154,13 +175,88 @@
       <span>WASM engine</span>
       <span class="status-line__value" id="engine-status-value">checking&hellip;</span>
     </p>
+
+    <section class="about" aria-label="about ReDoSaur">
+      <div class="about__col">
+        <h2 class="about__title">What ReDoSaur does</h2>
+        <p>
+          ReDoSaur is a browser tool that checks whether a regular expression is vulnerable to
+          catastrophic backtracking, the bug behind regular-expression denial of service (ReDoS).
+          Instead of matching your pattern against a list of known-bad shapes the way most linters
+          do, it parses the pattern into a syntax tree and runs it through an instrumented
+          backtracking engine, the same evaluation strategy used by PCRE, Python's <code>re</code>
+          module, JavaScript's <code>RegExp</code>, and Java's <code>Pattern</code>. It counts every
+          backtracking step, builds a worst-case input designed to make the pattern fail as slowly
+          as possible, and shows the step count climbing in real time.
+        </p>
+        <p>
+          Because the verdict comes from measured step growth rather than the shape of the source
+          text, it catches dangerous patterns that shape-based tools miss and clears safe patterns
+          that only look risky. When a pattern is flagged, ReDoSaur proposes an equivalent rewrite
+          that removes the ambiguity and re-runs it against the same input, so you watch the step
+          count drop from millions to a handful.
+        </p>
+        <h2 class="about__title">How to use it</h2>
+        <p>
+          Type or paste a pattern into the field at the top, or pick one of the example chips, and
+          press Run. ReDoSaur shows the worst-case input it generated, the backtracking step count,
+          and a risk verdict of Safe, Suspicious, or Catastrophic. If the pattern is risky, press
+          Suggest fix to see a safer version measured side by side. Nothing is uploaded: parsing and
+          simulation run entirely in WebAssembly in your browser, so patterns from private code
+          never leave your machine.
+        </p>
+      </div>
+
+      <div class="about__col">
+        <h2 class="about__title">FAQ</h2>
+        <dl class="faq">
+          <dt>What is ReDoS?</dt>
+          <dd>
+            Regular-expression denial of service. A pattern with nested or ambiguous quantifiers can
+            take exponential time to fail on a crafted input, letting a single request pin a CPU core
+            and stall a server.
+          </dd>
+          <dt>Which regex features does ReDoSaur support?</dt>
+          <dd>
+            Literals, character classes and shorthands (<code>\d</code>, <code>\w</code>,
+            <code>\s</code> and negations), concatenation, alternation, the <code>*</code>,
+            <code>+</code>, <code>?</code>, and <code>{m,n}</code> quantifiers, capturing and
+            non-capturing groups, and the <code>^</code> and <code>$</code> anchors.
+          </dd>
+          <dt>Does my regex get sent to a server?</dt>
+          <dd>
+            No. The engine is compiled to WebAssembly and runs locally in your browser. No pattern
+            you enter is transmitted or stored.
+          </dd>
+          <dt>Is a "Catastrophic" verdict definitely exploitable?</dt>
+          <dd>
+            It means the step count grows explosively on generated worst-case input, the signature of
+            catastrophic backtracking. Whether it is reachable in your app depends on whether an
+            attacker controls the matched string, so treat it as a strong signal to review, not a
+            proof of a live exploit.
+          </dd>
+          <dt>How is this different from a regex linter?</dt>
+          <dd>
+            A linter reads your pattern and guesses from its shape. ReDoSaur runs the pattern and
+            measures the actual blowup, which avoids both the false alarms and the blind spots of
+            shape matching.
+          </dd>
+        </dl>
+      </div>
+    </section>
   </main>
 
   <footer>
-    No regex ever leaves your browser — parsing and simulation run entirely in WASM. See
-    <a href="https://github.com/ctkrug/redosaur/blob/main/docs/VISION.md">docs/VISION.md</a>
-    and
-    <a href="https://github.com/ctkrug/redosaur/blob/main/docs/BACKLOG.md">docs/BACKLOG.md</a>.
+    <p class="footer__note">
+      No regex ever leaves your browser. Parsing and simulation run entirely in WASM. See
+      <a href="https://github.com/ctkrug/redosaur/blob/main/docs/VISION.md">docs/VISION.md</a>
+      and
+      <a href="https://github.com/ctkrug/redosaur/blob/main/docs/BACKLOG.md">docs/BACKLOG.md</a>.
+    </p>
+    <p class="footer__portfolio">
+      More by Charlie Krug &rarr;
+      <a href="https://apps.charliekrug.com">apps.charliekrug.com</a>
+    </p>
   </footer>
 
   <script type="module" src="js/main.js"></script>
