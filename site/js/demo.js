@@ -4,6 +4,7 @@
 // the preset pattern this page loads with.
 
 import { wasmReady } from "./wasm-loader.js";
+import { playTick, playWarn, playAlarm, playConfirm } from "./audio.js";
 
 const patternInput = document.getElementById("pattern-input");
 const runBtn = document.getElementById("run-btn");
@@ -65,9 +66,20 @@ function setError(message) {
   }
 }
 
+let lastAnnouncedRisk = null;
+
 function setGauge(risk) {
   gaugeEl.dataset.risk = risk;
   gaugeLabelEl.textContent = GAUGE_LABELS[risk] ?? risk;
+
+  if (risk !== lastAnnouncedRisk) {
+    if (risk === "suspicious") {
+      playWarn();
+    } else if (risk === "catastrophic") {
+      playAlarm();
+    }
+    lastAnnouncedRisk = risk;
+  }
 }
 
 function nextFrame() {
@@ -88,6 +100,7 @@ function animateCounter(target) {
       const t = Math.min((now - startTime) / REVEAL_DURATION_MS, 1);
       const value = Math.round(target * easeOutCubic(t));
       stepCounterEl.textContent = value.toLocaleString("en-US");
+      playTick();
       if (t < 1) {
         requestAnimationFrame(tick);
       } else {
@@ -194,6 +207,7 @@ async function suggestFix() {
 
     if (!result.truncated && result.steps_so_far < lastRun.steps) {
       fixConfirmEl.hidden = false;
+      playConfirm();
     }
   } catch (err) {
     fixCompareEl.hidden = true;
