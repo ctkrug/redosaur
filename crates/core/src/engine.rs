@@ -113,7 +113,49 @@ fn match_node(
             }
             false
         }
-        _ => false,
+        Ast::Repeat { node, min, max } => match_repeat(node, *min, *max, 0, input, pos, counters, k),
+    }
+}
+
+/// Greedily matches `node` as many times as possible (up to `max`) before
+/// falling through to `k`, backtracking one repetition at a time when the
+/// continuation fails — this is exactly the behavior that makes nested
+/// quantifiers like `(a+)+` explore an exponential number of groupings.
+fn match_repeat(
+    node: &Ast,
+    min: u32,
+    max: Option<u32>,
+    count: u32,
+    input: &[char],
+    pos: usize,
+    counters: &mut Counters,
+    k: &dyn Fn(usize, &mut Counters) -> bool,
+) -> bool {
+    if counters.tick() {
+        return false;
+    }
+    let can_repeat_more = max.map_or(true, |m| count < m);
+    if can_repeat_more {
+        let matched_more = match_node(node, input, pos, counters, &|p, c| {
+            if p == pos {
+                // Zero-width iteration: don't loop forever re-matching an
+                // empty repetition body. This iteration still counts.
+                count + 1 >= min && k(p, c)
+            } else {
+                match_repeat(node, min, max, count + 1, input, p, c, k)
+            }
+        });
+        if matched_more {
+            return true;
+        }
+        if counters.truncated {
+            return false;
+        }
+    }
+    if count >= min {
+        k(pos, counters)
+    } else {
+        false
     }
 }
 
@@ -207,6 +249,104 @@ mod tests {
         assert!(run(&ast, "a").matched);
         assert!(run(&ast, "b").matched);
         assert!(!run(&ast, "c").matched);
+    }
+
+    #[test]
+    fn star_matches_zero_or_more() {
+        let ast = Ast::Repeat {
+            node: Box::new(Ast::Literal('a')),
+            min: 0,
+            max: None,
+        };
+        assert!(run(&ast, "").matched);
+        assert!(run(&ast, "aaaa").matched);
+        assert!(!run(&ast, "aab").matched);
+    }
+
+    #[test]
+    fn plus_requires_at_least_one() {
+        let ast = Ast::Repeat {
+            node: Box::new(Ast::Literal('a')),
+            min: 1,
+            max: None,
+        };
+        assert!(!run(&ast, "").matched);
+        assert!(run(&ast, "aaa").matched);
+    }
+
+    #[test]
+    fn bounded_repeat_respects_max() {
+        let ast = Ast::Repeat {
+            node: Box::new(Ast::Literal('a')),
+            min: 1,
+            max: Some(3),
+        };
+        assert!(run(&ast, "aaa").matched);
+        assert!(!run(&ast, "aaaa").matched);
+    }
+
+    #[test]
+    fn nested_quantifier_backtracks_through_every_grouping() {
+        // (a+)+ against "aaa" has no trailing mismatch, so it must match —
+        // but only after the engine considers (and rejects) every way of
+        // splitting "aaa" across outer repetitions before landing on one
+        // that fully consumes the input.
+        let inner = Ast::Repeat {
+            node: Box::new(Ast::Literal('a')),
+            min: 1,
+            max: None,
+        };
+        let ast = Ast::Repeat {
+            node: Box::new(Ast::Group(Box::new(inner))),
+            min: 1,
+            max: None,
+        };
+        assert!(run(&ast, "aaa").matched);
+    }
+
+    #[test]
+    fn nested_quantifier_against_non_matching_tail_is_catastrophic() {
+        // The canonical ReDoS shape from docs/VISION.md: (a+)+ against a
+        // run of 'a's plus one trailing char that can never match forces
+        // the engine to exhaust every (outer-rep, inner-rep) split before
+        // concluding failure.
+        let inner = Ast::Repeat {
+            node: Box::new(Ast::Literal('a')),
+            min: 1,
+            max: None,
+        };
+        let ast = Ast::Repeat {
+            node: Box::new(Ast::Group(Box::new(inner))),
+            min: 1,
+            max: None,
+        };
+        let input = "a".repeat(24) + "!";
+        let trace = run_with_ceiling(&ast, &input, 10_000_000);
+        assert!(!trace.matched);
+        assert!(
+            trace.steps > 1_000_000,
+            "expected catastrophic step count, got {}",
+            trace.steps
+        );
+    }
+
+    #[test]
+    fn step_ceiling_truncates_instead_of_hanging() {
+        let inner = Ast::Repeat {
+            node: Box::new(Ast::Literal('a')),
+            min: 1,
+            max: None,
+        };
+        let ast = Ast::Repeat {
+            node: Box::new(Ast::Group(Box::new(inner))),
+            min: 1,
+            max: None,
+        };
+        let input = "a".repeat(30) + "!";
+        let trace = run_with_ceiling(&ast, &input, 1_000);
+        assert!(trace.truncated);
+        assert!(!trace.matched);
+        assert!(trace.steps >= 1_000);
     }
 
     #[test]
