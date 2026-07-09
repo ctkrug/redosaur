@@ -92,6 +92,18 @@ repeat over an alternation with structurally-equal branches like `(a|a)*`) that 
 and the verdict comes from the measured growth ratio between the shortest and longest probe,
 not from the shape alone.
 
+## Grammar support & known limits (`parser.rs`)
+
+Literals, concatenation, alternation, `*`/`+`/`?`/`{m,n}` quantifiers, capturing and
+non-capturing groups (`(...)`, `(?:...)`), character classes (`[...]`, negation, `\d`/`\w`/`\s`
+and their negations), `.` (matches anything except `\n`, matching PCRE/JS/Python's non-dotall
+default), and `^`/`$` anchors. Lookaround (`(?=...)`, `(?!...)`) and inline flags (`(?i)`) parse
+to an explicit `ParseError` rather than being silently misread. `.`'s newline exclusion matters
+beyond fidelity: an unconditionally-matches-everything `.` can never be forced to fail a
+fullmatch, which would silently break worst-case generation for any nested-quantifier pattern
+built on it (e.g. `(.+)+`, a very common real-world ReDoS shape) — see `generator.rs`'s
+`TAIL_CANDIDATES`.
+
 ## Running things
 
 - Core tests: `cargo test -p redosaur-core` (also runs under `cargo test --workspace`).
