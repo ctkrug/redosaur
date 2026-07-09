@@ -1,0 +1,28 @@
+# Rust
+/target/
+crates/*/target/
+Cargo.lock.bak
+**/*.rs.bk
+
+# WASM build output
+/site/pkg/
+/site/wasm/
+*.wasm
+
+# Node (site tooling, if added)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Build output
+/dist/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Env
+.env
+.env.local
