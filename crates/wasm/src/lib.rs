@@ -90,3 +90,12 @@ pub fn classify_risk(pattern: &str) -> Result<String, JsValue> {
     }
     .to_string())
 }
+
+/// Parses `pattern` and returns a safer, equivalent-intent rewrite if one
+/// of the known rules applies, or `undefined` if detection succeeded but
+/// no automated fix is known yet for this shape.
+#[wasm_bindgen]
+pub fn suggest_rewrite(pattern: &str) -> Result<Option<String>, JsValue> {
+    let ast = parser::parse(pattern).map_err(parse_error_to_js)?;
+    Ok(redosaur_core::rewrite::suggest(&ast, pattern))
+}
