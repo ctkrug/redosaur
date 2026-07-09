@@ -82,13 +82,52 @@ fn match_node(
                 false
             }
         }
+        Ast::CharClass(class) => match input.get(pos) {
+            Some(&c) if class.matches(c) => k(pos + 1, counters),
+            _ => false,
+        },
+        Ast::AnchorStart => {
+            if pos == 0 {
+                k(pos, counters)
+            } else {
+                false
+            }
+        }
+        Ast::AnchorEnd => {
+            if pos == input.len() {
+                k(pos, counters)
+            } else {
+                false
+            }
+        }
+        Ast::Concat(nodes) => match_concat(nodes, input, pos, counters, k),
         _ => false,
+    }
+}
+
+/// Matches a sequence of nodes by chaining each node's continuation into
+/// matching the rest of the sequence, then finally into `k`.
+fn match_concat(
+    nodes: &[Ast],
+    input: &[char],
+    pos: usize,
+    counters: &mut Counters,
+    k: &dyn Fn(usize, &mut Counters) -> bool,
+) -> bool {
+    match nodes.split_first() {
+        None => k(pos, counters),
+        Some((first, rest)) => {
+            match_node(first, input, pos, counters, &|p, c| {
+                match_concat(rest, input, p, c, k)
+            })
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parser::CharClass;
 
     #[test]
     fn empty_ast_matches_empty_input() {
@@ -111,5 +150,36 @@ mod tests {
     #[test]
     fn literal_rejects_other_char() {
         assert!(!run(&Ast::Literal('a'), "b").matched);
+    }
+
+    #[test]
+    fn char_class_matches_member() {
+        let digits = Ast::CharClass(CharClass {
+            negated: false,
+            ranges: vec![('0', '9')],
+        });
+        assert!(run(&digits, "5").matched);
+        assert!(!run(&digits, "x").matched);
+    }
+
+    #[test]
+    fn anchor_start_only_matches_at_position_zero() {
+        // Concat([AnchorStart, Literal('a')]) — anchor must hold before 'a'.
+        let ast = Ast::Concat(vec![Ast::AnchorStart, Ast::Literal('a')]);
+        assert!(run(&ast, "a").matched);
+    }
+
+    #[test]
+    fn anchor_end_requires_end_of_input() {
+        let ast = Ast::Concat(vec![Ast::Literal('a'), Ast::AnchorEnd]);
+        assert!(run(&ast, "a").matched);
+    }
+
+    #[test]
+    fn concat_matches_each_node_in_sequence() {
+        let ast = Ast::Concat(vec![Ast::Literal('a'), Ast::Literal('b')]);
+        assert!(run(&ast, "ab").matched);
+        assert!(!run(&ast, "ba").matched);
+        assert!(!run(&ast, "a").matched);
     }
 }
