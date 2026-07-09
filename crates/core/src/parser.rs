@@ -224,10 +224,54 @@ impl Parser {
                 Err(self.error("dangling quantifier with no preceding atom"))
             }
             Some('[') => self.parse_char_class(),
+            Some('^') => {
+                self.advance();
+                Ok(Ast::AnchorStart)
+            }
+            Some('$') => {
+                self.advance();
+                Ok(Ast::AnchorEnd)
+            }
+            Some('.') => {
+                self.advance();
+                Ok(Ast::CharClass(CharClass {
+                    negated: true,
+                    ranges: vec![],
+                }))
+            }
+            Some('\\') => self.parse_escape(),
             Some(c) => {
                 self.advance();
                 Ok(Ast::Literal(c))
             }
+        }
+    }
+
+    /// `\d`, `\w`, `\s` (and negated `\D`, `\W`, `\S`) shorthand classes,
+    /// plus `\<metachar>` for an escaped literal like `\.` or `\+`.
+    fn parse_escape(&mut self) -> Result<Ast, ParseError> {
+        self.advance(); // consume '\'
+        let c = self
+            .advance()
+            .ok_or_else(|| self.error("dangling escape at end of pattern"))?;
+        let class = match c {
+            'd' => Some((false, vec![('0', '9')])),
+            'D' => Some((true, vec![('0', '9')])),
+            'w' => Some((false, vec![('a', 'z'), ('A', 'Z'), ('0', '9'), ('_', '_')])),
+            'W' => Some((true, vec![('a', 'z'), ('A', 'Z'), ('0', '9'), ('_', '_')])),
+            's' => Some((
+                false,
+                vec![(' ', ' '), ('\t', '\t'), ('\n', '\n'), ('\r', '\r')],
+            )),
+            'S' => Some((
+                true,
+                vec![(' ', ' '), ('\t', '\t'), ('\n', '\n'), ('\r', '\r')],
+            )),
+            _ => None,
+        };
+        match class {
+            Some((negated, ranges)) => Ok(Ast::CharClass(CharClass { negated, ranges })),
+            None => Ok(Ast::Literal(c)),
         }
     }
 
@@ -486,6 +530,58 @@ mod tests {
     #[test]
     fn empty_char_class_is_a_parse_error() {
         assert!(parse("[]").is_err());
+    }
+
+    #[test]
+    fn anchors_parse_as_dedicated_nodes() {
+        assert_eq!(
+            parse("^a$").unwrap(),
+            Ast::Concat(vec![Ast::AnchorStart, Ast::Literal('a'), Ast::AnchorEnd])
+        );
+    }
+
+    #[test]
+    fn dot_matches_any_char_via_negated_empty_class() {
+        assert_eq!(
+            parse(".").unwrap(),
+            Ast::CharClass(CharClass {
+                negated: true,
+                ranges: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn digit_shorthand_class() {
+        assert_eq!(
+            parse(r"\d").unwrap(),
+            Ast::CharClass(CharClass {
+                negated: false,
+                ranges: vec![('0', '9')],
+            })
+        );
+    }
+
+    #[test]
+    fn negated_word_shorthand_class() {
+        assert_eq!(
+            parse(r"\W").unwrap(),
+            Ast::CharClass(CharClass {
+                negated: true,
+                ranges: vec![('a', 'z'), ('A', 'Z'), ('0', '9'), ('_', '_')],
+            })
+        );
+    }
+
+    #[test]
+    fn escaped_metachar_is_a_literal() {
+        assert_eq!(parse(r"\.").unwrap(), Ast::Literal('.'));
+        assert_eq!(parse(r"\+").unwrap(), Ast::Literal('+'));
+    }
+
+    #[test]
+    fn dangling_escape_is_a_parse_error() {
+        assert!(parse("\\").is_err());
     }
 
     #[test]
