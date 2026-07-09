@@ -4,6 +4,22 @@
 
 use std::fmt;
 
+/// A single `[...]` character class: a set of inclusive char ranges,
+/// optionally negated (`[^...]`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CharClass {
+    pub negated: bool,
+    pub ranges: Vec<(char, char)>,
+}
+
+impl CharClass {
+    /// Does `c` fall inside this class, honoring negation?
+    pub fn matches(&self, c: char) -> bool {
+        let in_ranges = self.ranges.iter().any(|&(lo, hi)| c >= lo && c <= hi);
+        in_ranges != self.negated
+    }
+}
+
 /// A parsed regular expression, as a tree of matchable nodes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ast {
@@ -11,6 +27,13 @@ pub enum Ast {
     Empty,
     /// A single literal character.
     Literal(char),
+    /// `[a-z]`, `[^0-9]`, `.`, `\d`, `\w`, `\s` (and negations) — a set of
+    /// characters to match against one input position.
+    CharClass(CharClass),
+    /// `^` — matches only at the start of the input.
+    AnchorStart,
+    /// `$` — matches only at the end of the input.
+    AnchorEnd,
     /// `ab` — match each node in sequence.
     Concat(Vec<Ast>),
     /// `a|b` — match any one of the alternatives.
