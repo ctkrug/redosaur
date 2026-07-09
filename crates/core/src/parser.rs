@@ -621,6 +621,18 @@ mod tests {
     }
 
     #[test]
+    fn zero_count_repeat_is_valid() {
+        assert_eq!(
+            parse("a{0}").unwrap(),
+            Ast::Repeat {
+                node: Box::new(Ast::Literal('a')),
+                min: 0,
+                max: Some(0),
+            }
+        );
+    }
+
+    #[test]
     fn open_ended_repeat() {
         assert_eq!(
             parse("a{2,}").unwrap(),
