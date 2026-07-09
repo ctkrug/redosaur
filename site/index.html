@@ -64,32 +64,73 @@
       proves the counter stops.
     </p>
 
-    <section class="panel" aria-label="engine status">
-      <p class="panel__label">Engine status</p>
-      <p class="status-line" id="engine-status">
-        <span>WASM module</span>
-        <span class="status-line__value" id="engine-status-value">checking&hellip;</span>
-      </p>
-    </section>
+    <div class="layout">
+      <section class="scope-panel" aria-label="regex tester">
+        <label class="panel__label" for="pattern-input">Pattern under test</label>
+        <div class="pattern-row">
+          <span class="pattern-row__delim" aria-hidden="true">/</span>
+          <input
+            id="pattern-input"
+            class="pattern-input"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            value="(a+)+"
+            aria-describedby="pattern-error"
+          />
+          <span class="pattern-row__delim" aria-hidden="true">/</span>
+          <button class="run-btn" id="run-btn" type="button">Run ▶</button>
+        </div>
+        <p class="pattern-error" id="pattern-error" role="alert" hidden></p>
 
-    <section class="panel" aria-label="build plan">
-      <p class="panel__label">Build plan</p>
-      <ul class="epics">
-        <li><strong>Epic 1 — Core Engine &amp; Wow-Moment Demo</strong>Live catastrophic-backtracking demo, full parser + engine, chunked WASM bridge.</li>
-        <li><strong>Epic 2 — ReDoS Detection &amp; Risk Classification</strong>Ambiguity detection, worst-case generation, measured-growth risk gauge.</li>
-        <li><strong>Epic 3 — Safe Rewrite &amp; Fix Confirmation</strong>Rewrite rules and a side-by-side before/after proof.</li>
-        <li><strong>Epic 4 — Polish, Design &amp; Ship</strong>Breakpoint polish, brand/a11y pass, static build + deploy readiness.</li>
-      </ul>
-    </section>
+        <div class="trace" id="trace">
+          <div class="trace__row">
+            <span class="trace__label">Worst-case input</span>
+            <code class="trace__value trace__value--input" id="worst-case-input">&mdash;</code>
+          </div>
+          <div class="trace__row">
+            <span class="trace__label">Backtracking steps</span>
+            <span class="step-counter" id="step-counter">0</span>
+          </div>
+          <div class="gauge" id="risk-gauge" data-risk="idle" role="status" aria-live="polite">
+            <span class="gauge__dot"></span>
+            <span class="gauge__label" id="gauge-label">Idle</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="rail" aria-label="example patterns">
+        <p class="panel__label">Try a pattern</p>
+        <div class="chip-row" id="example-chips">
+          <button class="chip" type="button" data-pattern="(a+)+">(a+)+</button>
+          <button class="chip" type="button" data-pattern="(a|a)*">(a|a)*</button>
+          <button class="chip" type="button" data-pattern="(a*)*">(a*)*</button>
+          <button class="chip" type="button" data-pattern="[a-z]+">[a-z]+</button>
+          <button class="chip" type="button" data-pattern="^\w+@\w+\.\w+$">^\w+@\w+\.\w+$</button>
+          <button class="chip" type="button" data-pattern="a{1,20}">a{1,20}</button>
+        </div>
+        <p class="rail__hint">
+          ReDoSaur parses each pattern into a real AST and runs it through an instrumented
+          backtracking engine — the same evaluation strategy PCRE, Python, and JavaScript use.
+        </p>
+      </aside>
+    </div>
+
+    <p class="status-line status-line--footer" id="engine-status">
+      <span>WASM engine</span>
+      <span class="status-line__value" id="engine-status-value">checking&hellip;</span>
+    </p>
   </main>
 
   <footer>
-    Early scaffold — see
+    No regex ever leaves your browser — parsing and simulation run entirely in WASM. See
     <a href="https://github.com/ctkrug/redosaur/blob/main/docs/VISION.md">docs/VISION.md</a>
     and
     <a href="https://github.com/ctkrug/redosaur/blob/main/docs/BACKLOG.md">docs/BACKLOG.md</a>.
   </footer>
 
   <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/demo.js"></script>
 </body>
 </html>
