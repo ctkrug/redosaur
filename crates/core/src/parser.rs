@@ -321,6 +321,23 @@ impl Parser {
                     self.advance();
                     break;
                 }
+                Some('\\') => {
+                    self.advance(); // consume '\'
+                    let escaped = self
+                        .advance()
+                        .ok_or_else(|| self.error("dangling escape in character class"))?;
+                    match shorthand_class(escaped) {
+                        Some((false, class_ranges)) => ranges.extend(class_ranges),
+                        Some((true, _)) => {
+                            return Err(self.error(
+                                "negated shorthand classes like \\D are not supported inside \
+                                 a character class",
+                            ));
+                        }
+                        // \], \-, \\, \^, or any other escaped literal.
+                        None => ranges.push((escaped, escaped)),
+                    }
+                }
                 Some(_) => {
                     let lo = self.advance().unwrap();
                     if self.peek() == Some('-') && self.chars.get(self.pos + 1) != Some(&']') {
@@ -670,6 +687,54 @@ mod tests {
     #[test]
     fn unbalanced_char_class_is_a_parse_error() {
         assert!(parse("[abc").is_err());
+    }
+
+    #[test]
+    fn char_class_embeds_a_shorthand_class() {
+        // [\d.] — very common in real-world patterns (e.g. "[\w.-]+" for
+        // a hostname segment) — merges \d's ranges into the surrounding
+        // class rather than treating '\' and 'd' as two literal chars.
+        assert_eq!(
+            parse(r"[\d.]").unwrap(),
+            Ast::CharClass(CharClass {
+                negated: false,
+                ranges: vec![('0', '9'), ('.', '.')],
+            })
+        );
+    }
+
+    #[test]
+    fn char_class_embeds_multiple_shorthand_classes() {
+        let ast = parse(r"[\w\s]").unwrap();
+        let Ast::CharClass(class) = ast else {
+            panic!("expected a CharClass");
+        };
+        assert!(class.matches('a'));
+        assert!(class.matches('_'));
+        assert!(class.matches(' '));
+        assert!(!class.matches('!'));
+    }
+
+    #[test]
+    fn char_class_escaped_bracket_is_a_literal_member() {
+        assert_eq!(
+            parse(r"[\]a]").unwrap(),
+            Ast::CharClass(CharClass {
+                negated: false,
+                ranges: vec![(']', ']'), ('a', 'a')],
+            })
+        );
+    }
+
+    #[test]
+    fn negated_shorthand_class_inside_char_class_is_a_parse_error() {
+        assert!(parse(r"[\D]").is_err());
+        assert!(parse(r"[a\W]").is_err());
+    }
+
+    #[test]
+    fn dangling_escape_in_char_class_is_a_parse_error() {
+        assert!(parse("[a\\").is_err());
     }
 
     #[test]
