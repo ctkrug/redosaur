@@ -144,9 +144,9 @@ a {
 main {
   position: relative;
   z-index: 1;
-  max-width: 960px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-3) var(--space-6);
+  padding: var(--space-5) var(--space-3) var(--space-6);
 }
 
 .tagline {
@@ -204,23 +204,10 @@ main {
   color: var(--text-muted);
 }
 
-.epics {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space-2);
-}
-
-.epics li {
-  border-left: 2px solid var(--border);
-  padding-left: var(--space-2);
-  color: var(--text-muted);
-}
-
-.epics li strong {
-  color: var(--text);
-  display: block;
+.status-line--footer {
+  margin-top: var(--space-4);
+  font-size: 0.8rem;
+  opacity: 0.75;
 }
 
 footer {
