@@ -183,4 +183,34 @@ mod tests {
             Ast::Concat(vec![Ast::Literal('a'), Ast::Literal('b')])
         );
     }
+
+    #[test]
+    fn alternation_parses_branches() {
+        assert_eq!(
+            parse("a|b").unwrap(),
+            Ast::Alternation(vec![Ast::Literal('a'), Ast::Literal('b')])
+        );
+    }
+
+    #[test]
+    fn group_wraps_its_contents() {
+        assert_eq!(
+            parse("(a|b)").unwrap(),
+            Ast::Group(Box::new(Ast::Alternation(vec![
+                Ast::Literal('a'),
+                Ast::Literal('b')
+            ])))
+        );
+    }
+
+    #[test]
+    fn unbalanced_open_paren_is_a_parse_error() {
+        let err = parse("(a").unwrap_err();
+        assert_eq!(err.position, 2);
+    }
+
+    #[test]
+    fn unmatched_close_paren_is_a_parse_error() {
+        assert!(parse("a)").is_err());
+    }
 }
