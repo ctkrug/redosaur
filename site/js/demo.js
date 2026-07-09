@@ -160,7 +160,53 @@ async function runDemo(pattern) {
   }
 }
 
+// Runs the rewritten pattern's trace against the SAME worst-case input
+// that made the original pattern catastrophic, so "before" and "after"
+// are a fair comparison — the payoff shot from docs/DESIGN.md's juice
+// plan (3.2).
+async function suggestFix() {
+  if (!lastRun || suggestBtn.disabled) {
+    return;
+  }
+  suggestBtn.disabled = true;
+  fixPanelEl.hidden = false;
+  fixConfirmEl.hidden = true;
+
+  try {
+    const wasm = await wasmReady;
+    const rewritten = wasm.suggest_rewrite(lastRun.pattern);
+
+    if (!rewritten) {
+      fixCompareEl.hidden = true;
+      fixEmptyEl.hidden = false;
+      return;
+    }
+
+    fixEmptyEl.hidden = true;
+    fixCompareEl.hidden = false;
+    fixBeforePatternEl.textContent = lastRun.pattern;
+    fixBeforeStepsEl.textContent = lastRun.steps.toLocaleString("en-US");
+    fixAfterPatternEl.textContent = rewritten;
+    fixAfterStepsEl.textContent = "0";
+
+    const result = await measureSteps(wasm, rewritten, lastRun.worstCase);
+    fixAfterStepsEl.textContent = result.steps_so_far.toLocaleString("en-US");
+
+    if (!result.truncated && result.steps_so_far < lastRun.steps) {
+      fixConfirmEl.hidden = false;
+    }
+  } catch (err) {
+    fixCompareEl.hidden = true;
+    fixEmptyEl.hidden = false;
+    console.error("ReDoSaur: suggest-fix run failed.", err);
+  } finally {
+    suggestBtn.disabled = false;
+  }
+}
+
 runBtn.addEventListener("click", () => runDemo(patternInput.value.trim()));
+
+suggestBtn.addEventListener("click", suggestFix);
 
 patternInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
