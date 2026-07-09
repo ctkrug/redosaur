@@ -97,13 +97,13 @@ before anything optional gets built.
 
 ## Epic 4 — Polish, Design & Ship
 
-- [ ] **4.1 — Design polish pass across breakpoints**
+- [x] **4.1 — Design polish pass across breakpoints**
   - The site composes with no horizontal scroll, no overlap, and no dead empty margins at 390px,
     768px, and 1440px, per `docs/DESIGN.md`'s layout intent.
   - Every interactive control (regex input, buttons, mute toggle, example chips) has themed
     hover/focus/active/disabled states — no naked native widgets.
 
-- [ ] **4.2 — Brand assets and accessibility pass**
+- [x] **4.2 — Brand assets and accessibility pass**
   - A generated favicon (accent green + claw glyph, inline SVG data URI) replaces any default
     icon; the wordmark uses the Space Mono flicker treatment from `docs/DESIGN.md`.
   - Body text contrast is ≥4.5:1 against its background; icon-only buttons carry `aria-label`s;
