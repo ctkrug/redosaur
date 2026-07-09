@@ -351,6 +351,37 @@ mod tests {
     }
 
     #[test]
+    fn budget_capped_run_completes_well_under_one_frame() {
+        // The premise behind the WASM bridge's chunked run_chunk (BACKLOG
+        // 1.4): a single call capped at a per-animation-frame budget must
+        // return fast enough to keep the UI thread responsive, even against
+        // a genuinely catastrophic pattern. redosaur-wasm's run_chunk is a
+        // direct wrapper over run_with_ceiling with no added cost, so this
+        // native timing is a faithful stand-in for the in-browser number
+        // (wasm-bindgen's JsValue can't run under native `cargo test`, so a
+        // real WASM host measurement isn't possible here).
+        let inner = Ast::Repeat {
+            node: Box::new(Ast::Literal('a')),
+            min: 1,
+            max: None,
+        };
+        let ast = Ast::Repeat {
+            node: Box::new(Ast::Group(Box::new(inner))),
+            min: 1,
+            max: None,
+        };
+        let input = "a".repeat(40) + "!";
+        let start = std::time::Instant::now();
+        let trace = run_with_ceiling(&ast, &input, 50_000);
+        let elapsed = start.elapsed();
+        assert!(trace.truncated);
+        assert!(
+            elapsed.as_millis() < 16,
+            "expected a 50,000-step budget to return in under ~16ms, took {elapsed:?}"
+        );
+    }
+
+    #[test]
     fn alternation_backtracks_into_later_branches() {
         // First branch ("a") matches a prefix but leaves "b" unconsumed
         // under fullmatch semantics, so the engine must fall through to
