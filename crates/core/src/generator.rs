@@ -44,8 +44,10 @@ fn representative_char_for_class(class: &CharClass) -> Option<char> {
 
 /// A small pool of candidate "shouldn't match" characters to try as the
 /// worst-case input's trailing char, roughly in order of how unlikely a
-/// typical pattern is to accept them.
-const TAIL_CANDIDATES: [char; 10] = ['!', '@', '#', '$', '%', '^', '&', '~', 'Z', '0'];
+/// typical pattern is to accept them. `\n` is last: it's rejected by every
+/// class here except `.` (which excludes it precisely so this works), so it
+/// only gets picked for the patterns that actually need it.
+const TAIL_CANDIDATES: [char; 11] = ['!', '@', '#', '$', '%', '^', '&', '~', 'Z', '0', '\n'];
 
 fn pick_tail_char(ast: &Ast, unit_char: char) -> char {
     TAIL_CANDIDATES
@@ -100,6 +102,21 @@ mod tests {
         let input = worst_case(&ast, 3);
         let tail = input.chars().last().unwrap();
         assert!(!char_is_accepted(&ast, tail));
+    }
+
+    #[test]
+    fn tail_char_falls_back_to_newline_for_a_dot_based_pattern() {
+        // `.` (negated, excludes only '\n') accepts every other candidate
+        // in TAIL_CANDIDATES, so '\n' is the only char left that can force
+        // a fullmatch failure — without it, worst-case generation for
+        // patterns built on `.` (e.g. `(.+)+`) can't demonstrate blowup.
+        let dot = Ast::CharClass(CharClass {
+            negated: true,
+            ranges: vec![('\n', '\n')],
+        });
+        let input = worst_case(&dot, 5);
+        assert_eq!(input.chars().last(), Some('\n'));
+        assert!(!char_is_accepted(&dot, '\n'));
     }
 
     #[test]
