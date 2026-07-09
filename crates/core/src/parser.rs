@@ -1,6 +1,8 @@
-//! Regex -> AST parser. Placeholder shape for the ReDoSaur core engine;
-//! the full grammar (concatenation, alternation, quantifiers, groups,
-//! character classes) is built out in docs/BACKLOG.md Epic 1.
+//! Regex -> AST parser. Supports literals, concatenation, alternation
+//! (`|`), quantifiers (`*`, `+`, `?`, `{m,n}`), groups (`(...)`),
+//! character classes (`[...]`, `.`, `\d`/`\w`/`\s` and negations), and
+//! anchors (`^`, `$`). Malformed input returns a positioned `ParseError`
+//! rather than panicking.
 
 use std::fmt;
 
