@@ -192,4 +192,13 @@ mod tests {
         let ast = parse("a{1,20}").unwrap();
         assert_ne!(classify(&ast), Risk::Catastrophic);
     }
+
+    #[test]
+    fn dot_based_nested_quantifier_classifies_catastrophic() {
+        // (.+)+ is a very common real-world ReDoS shape; it only
+        // classifies correctly if the worst-case generator can find a
+        // char '.' rejects to force a fullmatch failure (see generator.rs).
+        let ast = parse("(.+)+").unwrap();
+        assert_eq!(classify(&ast), Risk::Catastrophic);
+    }
 }
