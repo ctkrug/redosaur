@@ -145,6 +145,18 @@ mod tests {
     }
 
     #[test]
+    fn dedup_keeps_remaining_alternation_when_more_than_one_branch_survives() {
+        // (a|a|b)* has three branches; removing the single duplicate still
+        // leaves two distinct branches, so the result must stay an
+        // Alternation (a|b)* rather than collapsing to a bare repeat like
+        // the two-branch (a|a)* case above.
+        assert_eq!(
+            suggest(&parse("(a|a|b)*").unwrap(), "(a|a|b)*"),
+            Some("(a|b)*".to_string())
+        );
+    }
+
+    #[test]
     fn no_suggestion_for_safe_patterns() {
         for pattern in ["a+", "[a-z]+", "(ab)+", "a{1,20}"] {
             assert_eq!(suggest(&parse(pattern).unwrap(), pattern), None);
