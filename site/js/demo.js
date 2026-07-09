@@ -124,6 +124,7 @@ async function runDemo(pattern) {
   setGauge("running");
   stepCounterEl.textContent = "0";
   worstCaseEl.textContent = "…";
+  resetFixPanel();
 
   try {
     const wasm = await wasmReady;
@@ -144,6 +145,11 @@ async function runDemo(pattern) {
     const result = await measureSteps(wasm, pattern, worstCase);
     await animateCounter(result.steps_so_far);
     setGauge(risk.toLowerCase());
+
+    if (risk.toLowerCase() !== "safe") {
+      lastRun = { pattern, worstCase, steps: result.steps_so_far };
+      suggestBtn.disabled = false;
+    }
   } catch (err) {
     setError("The engine isn't available in this build yet — run the WASM build.");
     setGauge("idle");
