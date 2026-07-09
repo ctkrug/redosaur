@@ -225,9 +225,25 @@ mod tests {
     }
 
     #[test]
+    fn anchor_start_fails_when_not_at_position_zero() {
+        // "a^b" — a pattern can place '^' anywhere, not just at the front;
+        // once 'a' has advanced past position 0, the anchor must fail.
+        let ast = Ast::Concat(vec![Ast::Literal('a'), Ast::AnchorStart, Ast::Literal('b')]);
+        assert!(!run(&ast, "ab").matched);
+    }
+
+    #[test]
     fn anchor_end_requires_end_of_input() {
         let ast = Ast::Concat(vec![Ast::Literal('a'), Ast::AnchorEnd]);
         assert!(run(&ast, "a").matched);
+    }
+
+    #[test]
+    fn anchor_end_fails_before_end_of_input() {
+        // "a$b" — '$' asserted mid-pattern must fail unless it genuinely
+        // lands on the last position, even though a literal follows it.
+        let ast = Ast::Concat(vec![Ast::Literal('a'), Ast::AnchorEnd, Ast::Literal('b')]);
+        assert!(!run(&ast, "ab").matched);
     }
 
     #[test]
