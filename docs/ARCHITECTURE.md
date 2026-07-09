@@ -109,6 +109,40 @@ fullmatch, which would silently break worst-case generation for any nested-quant
 built on it (e.g. `(.+)+`, a very common real-world ReDoS shape) — see `generator.rs`'s
 `TAIL_CANDIDATES`.
 
+## Adversarial-input hardening (`parser.rs`)
+
+Because the entire product is "paste arbitrary, possibly hostile regex input," the parser caps
+two axes that are otherwise unbounded and could crash the process (native stack overflow, which
+`catch_unwind` cannot recover from) rather than fail cleanly:
+
+- `MAX_GROUP_DEPTH` (250) — `(...)` nesting depth. Each level of `(` costs several recursive-
+  descent stack frames, and the AST-walking analyzer/engine/generator/rewrite passes all mirror
+  that depth on every walk.
+- `MAX_PATTERN_LENGTH` (1,000 chars) — total pattern length. `engine::match_concat` recurses one
+  stack frame per sibling in a flat `Concat`, so even a pattern with zero groups (e.g. a long
+  literal string pasted in by accident) can still blow the stack; the group-depth cap alone
+  doesn't bound this axis. Both limits return a normal `ParseError`, and the UI mirrors the
+  length cap as `maxlength="1000"` on the pattern input for immediate feedback.
+
+## Site build wiring — read this before touching `site/js/wasm-loader.js` or the `.layout` CSS
+
+Two structural bugs shipped and passed CI before this pass caught them live in a real browser
+(the CI smoke test only curled each asset individually and never executed the page's JS):
+
+- `wasm-loader.js` imports the WASM glue via a path **relative to `site/js/`**, so it must be
+  `"../pkg/redosaur_wasm.js"` — `site/pkg/` (per the README and CI's `--out-dir`) is one level
+  *up* from `site/js/`, not a sibling of it. Getting this wrong loads the page with the engine
+  permanently stuck at "not built yet."
+- `.layout`'s single-column breakpoint (`@media (max-width: 900px)`) must use
+  `grid-template-columns: minmax(0, 1fr)`, not bare `1fr`. Bare `1fr` is `minmax(auto, 1fr)`,
+  and the `auto` minimum lets a descendant's min-content width (here, the horizontally-scrolling
+  chip row) blow the grid track out past the viewport — confirmed empirically as 2.5x page-level
+  horizontal overflow at 390px before the fix.
+
+CI's `site` job now also drives headless Chromium against the built, subpath-served site (waits
+for the engine status to report online, runs the default pattern, fails on any console/page
+error) specifically so a regression in either of the above fails the build instead of shipping.
+
 ## Running things
 
 - Core tests: `cargo test -p redosaur-core` (also runs under `cargo test --workspace`).
