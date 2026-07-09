@@ -142,7 +142,7 @@ patternInput.addEventListener("keydown", (event) => {
 
 chips.forEach((chip) => {
   chip.addEventListener("click", () => {
-    chips.forEach((c) => c.removeAttribute("aria-pressed"));
+    chips.forEach((c) => c.setAttribute("aria-pressed", "false"));
     chip.setAttribute("aria-pressed", "true");
     patternInput.value = chip.dataset.pattern;
     runDemo(chip.dataset.pattern);

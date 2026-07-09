@@ -103,12 +103,12 @@
       <aside class="rail" aria-label="example patterns">
         <p class="panel__label">Try a pattern</p>
         <div class="chip-row" id="example-chips">
-          <button class="chip" type="button" data-pattern="(a+)+">(a+)+</button>
-          <button class="chip" type="button" data-pattern="(a|a)*">(a|a)*</button>
-          <button class="chip" type="button" data-pattern="(a*)*">(a*)*</button>
-          <button class="chip" type="button" data-pattern="[a-z]+">[a-z]+</button>
-          <button class="chip" type="button" data-pattern="^\w+@\w+\.\w+$">^\w+@\w+\.\w+$</button>
-          <button class="chip" type="button" data-pattern="a{1,20}">a{1,20}</button>
+          <button class="chip" type="button" data-pattern="(a+)+" aria-pressed="false">(a+)+</button>
+          <button class="chip" type="button" data-pattern="(a|a)*" aria-pressed="false">(a|a)*</button>
+          <button class="chip" type="button" data-pattern="(a*)*" aria-pressed="false">(a*)*</button>
+          <button class="chip" type="button" data-pattern="[a-z]+" aria-pressed="false">[a-z]+</button>
+          <button class="chip" type="button" data-pattern="^\w+@\w+\.\w+$" aria-pressed="false">^\w+@\w+\.\w+$</button>
+          <button class="chip" type="button" data-pattern="a{1,20}" aria-pressed="false">a{1,20}</button>
         </div>
         <p class="rail__hint">
           ReDoSaur parses each pattern into a real AST and runs it through an instrumented
