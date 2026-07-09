@@ -97,9 +97,21 @@ fn shorthand_class(c: char) -> Option<(bool, Vec<(char, char)>)> {
 /// atom        := literal | '(' ('?:')? alternation ')' | '[' class_item* ']'
 ///              | '^' | '$' | '.' | '\' escape
 /// ```
+/// Hard cap on `(...)` nesting depth. Each level of nesting costs several
+/// stack frames across the recursive-descent parser (and, downstream, the
+/// AST-walking analyzer/engine/generator/rewrite passes that mirror that
+/// depth), so an unbounded cap lets a pathological pattern like
+/// `"(".repeat(50_000) + "a" + ")".repeat(50_000)"` blow the stack rather
+/// than fail cleanly — a real hazard for a tool whose whole job is
+/// accepting adversarial regex input. 250 comfortably covers any
+/// realistic hand-written or generated pattern while leaving a wide safety
+/// margin under a stack overflow (measured empirically well above 2,000).
+const MAX_GROUP_DEPTH: usize = 250;
+
 struct Parser {
     chars: Vec<char>,
     pos: usize,
+    depth: usize,
 }
 
 impl Parser {
@@ -107,6 +119,7 @@ impl Parser {
         Parser {
             chars: pattern.chars().collect(),
             pos: 0,
+            depth: 0,
         }
     }
 
@@ -238,6 +251,11 @@ impl Parser {
             None => Err(self.error("expected an atom but found end of pattern")),
             Some('(') => {
                 self.advance();
+                if self.depth >= MAX_GROUP_DEPTH {
+                    return Err(self.error(format!(
+                        "group nesting exceeds the maximum supported depth of {MAX_GROUP_DEPTH}"
+                    )));
+                }
                 if self.peek() == Some('?') {
                     self.advance();
                     // `(?:...)` — a non-capturing group. This crate never
@@ -251,7 +269,9 @@ impl Parser {
                         ));
                     }
                 }
+                self.depth += 1;
                 let inner = self.parse_alternation()?;
+                self.depth -= 1;
                 if self.advance() != Some(')') {
                     return Err(self.error("unbalanced parenthesis: expected ')'"));
                 }
@@ -517,6 +537,31 @@ mod tests {
     fn unbalanced_open_paren_is_a_parse_error() {
         let err = parse("(a").unwrap_err();
         assert_eq!(err.position, 2);
+    }
+
+    #[test]
+    fn excessive_group_nesting_is_a_parse_error_not_a_stack_overflow() {
+        // A pathological pattern like this used to blow the native stack
+        // (empirically, well before 3,000 levels of nesting) instead of
+        // failing cleanly — a real hazard for a tool whose whole job is
+        // accepting adversarial regex input.
+        let depth = 10_000;
+        let pattern = "(".repeat(depth) + "a" + &")".repeat(depth);
+        assert!(parse(&pattern).is_err());
+    }
+
+    #[test]
+    fn nesting_at_the_depth_limit_still_parses() {
+        let depth = 250;
+        let pattern = "(".repeat(depth) + "a" + &")".repeat(depth);
+        assert!(parse(&pattern).is_ok());
+    }
+
+    #[test]
+    fn nesting_one_past_the_depth_limit_is_a_parse_error() {
+        let depth = 251;
+        let pattern = "(".repeat(depth) + "a" + &")".repeat(depth);
+        assert!(parse(&pattern).is_err());
     }
 
     #[test]
