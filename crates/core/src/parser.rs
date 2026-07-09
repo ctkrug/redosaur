@@ -652,6 +652,11 @@ mod tests {
     }
 
     #[test]
+    fn repeat_bound_overflowing_u32_is_a_parse_error() {
+        assert!(parse("a{99999999999}").is_err());
+    }
+
+    #[test]
     fn char_class_of_single_chars() {
         assert_eq!(
             parse("[abc]").unwrap(),
