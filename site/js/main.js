@@ -1,15 +1,14 @@
-// Boots the WASM engine and wires up the top-bar mute toggle. The engine
-// demo itself (regex input, live trace, risk gauge) lands with Epic 1 in
-// docs/BACKLOG.md — this file only proves the WASM pipeline loads end to
-// end and keeps the mute preference the juice plan (docs/DESIGN.md) needs.
+// Boots the WASM engine (via the shared wasm-loader) and wires up the
+// top-bar mute toggle. The demo itself lives in demo.js.
+
+import { wasmReady } from "./wasm-loader.js";
 
 const statusValue = document.getElementById("engine-status-value");
 const statusLine = document.getElementById("engine-status");
 
 async function bootEngine() {
   try {
-    const wasm = await import("./pkg/redosaur_wasm.js");
-    await wasm.default();
+    const wasm = await wasmReady;
     const version = wasm.version();
     statusValue.textContent = `online — v${version}`;
     statusLine.classList.remove("status-line--pending");
