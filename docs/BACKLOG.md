@@ -110,7 +110,7 @@ before anything optional gets built.
     the step counter/gauge use a live region so risk escalation is announced; `prefers-reduced-
     motion` disables scanline/flicker/glow-pulse animation while keeping function.
 
-- [ ] **4.3 — Static build pipeline and subpath deploy readiness**
+- [x] **4.3 — Static build pipeline and subpath deploy readiness**
   - `site/` builds to a single self-contained output directory using only relative asset paths
     (no leading `/`).
   - Serving the built output from a non-root subpath (e.g. `python3 -m http.server` under a
