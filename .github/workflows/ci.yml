@@ -40,3 +40,41 @@ jobs:
         run: cargo clippy -p redosaur-wasm --target wasm32-unknown-unknown -- -D warnings
       - name: build
         run: cargo build -p redosaur-wasm --target wasm32-unknown-unknown --release
+
+  site:
+    name: site — build + subpath-serve smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasm-bindgen-cli-0.2.126
+      - name: build wasm
+        run: cargo build -p redosaur-wasm --target wasm32-unknown-unknown --release
+      - name: install wasm-bindgen-cli (pinned to Cargo.lock's wasm-bindgen version)
+        run: cargo install wasm-bindgen-cli --version 0.2.126 --locked
+      - name: generate JS bindings
+        run: |
+          wasm-bindgen --target web --out-dir site/pkg \
+            target/wasm32-unknown-unknown/release/redosaur_wasm.wasm
+      - name: reject leading-slash absolute asset paths (breaks the /redosaur/ subpath deploy)
+        run: |
+          if grep -nE 'href="/[^/]|src="/[^/]' site/index.html; then
+            echo "found a leading-slash absolute asset path in site/index.html"
+            exit 1
+          fi
+      - name: serve the built site from a subpath and smoke-check every asset loads
+        run: |
+          mkdir -p www/redosaur
+          cp -r site/. www/redosaur/
+          python3 -m http.server 8123 --directory www &
+          server_pid=$!
+          sleep 1
+          for path in "" css/style.css js/main.js js/demo.js js/audio.js js/wasm-loader.js \
+                      pkg/redosaur_wasm.js pkg/redosaur_wasm_bg.wasm; do
+            curl -sf "http://127.0.0.1:8123/redosaur/$path" > /dev/null
+          done
+          kill "$server_pid"
