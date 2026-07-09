@@ -63,23 +63,103 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-/// Parse a regex pattern into an [`Ast`].
+/// Recursive-descent parser over a regex pattern's chars.
 ///
-/// Currently supports the empty pattern and single-character literals
-/// only; the rest of the grammar lands across docs/BACKLOG.md Epic 1.
+/// Grammar (quantifiers, character classes, anchors land in follow-up
+/// commits per docs/BACKLOG.md 1.2):
+/// ```text
+/// alternation := concat ('|' concat)*
+/// concat      := atom*
+/// atom        := literal | '(' alternation ')'
+/// ```
+struct Parser {
+    chars: Vec<char>,
+    pos: usize,
+}
+
+impl Parser {
+    fn new(pattern: &str) -> Self {
+        Parser {
+            chars: pattern.chars().collect(),
+            pos: 0,
+        }
+    }
+
+    fn peek(&self) -> Option<char> {
+        self.chars.get(self.pos).copied()
+    }
+
+    fn advance(&mut self) -> Option<char> {
+        let c = self.peek();
+        if c.is_some() {
+            self.pos += 1;
+        }
+        c
+    }
+
+    fn error(&self, message: impl Into<String>) -> ParseError {
+        ParseError {
+            message: message.into(),
+            position: self.pos,
+        }
+    }
+
+    fn parse_alternation(&mut self) -> Result<Ast, ParseError> {
+        let mut branches = vec![self.parse_concat()?];
+        while self.peek() == Some('|') {
+            self.advance();
+            branches.push(self.parse_concat()?);
+        }
+        if branches.len() == 1 {
+            Ok(branches.into_iter().next().unwrap())
+        } else {
+            Ok(Ast::Alternation(branches))
+        }
+    }
+
+    fn parse_concat(&mut self) -> Result<Ast, ParseError> {
+        let mut nodes = Vec::new();
+        while let Some(c) = self.peek() {
+            if c == '|' || c == ')' {
+                break;
+            }
+            nodes.push(self.parse_atom()?);
+        }
+        match nodes.len() {
+            0 => Ok(Ast::Empty),
+            1 => Ok(nodes.into_iter().next().unwrap()),
+            _ => Ok(Ast::Concat(nodes)),
+        }
+    }
+
+    fn parse_atom(&mut self) -> Result<Ast, ParseError> {
+        match self.peek() {
+            None => Err(self.error("expected an atom but found end of pattern")),
+            Some('(') => {
+                self.advance();
+                let inner = self.parse_alternation()?;
+                if self.advance() != Some(')') {
+                    return Err(self.error("unbalanced parenthesis: expected ')'"));
+                }
+                Ok(Ast::Group(Box::new(inner)))
+            }
+            Some(')') => Err(self.error("unexpected ')' with no matching '('")),
+            Some(c) => {
+                self.advance();
+                Ok(Ast::Literal(c))
+            }
+        }
+    }
+}
+
+/// Parse a regex pattern into an [`Ast`].
 pub fn parse(pattern: &str) -> Result<Ast, ParseError> {
-    if pattern.is_empty() {
-        return Ok(Ast::Empty);
+    let mut parser = Parser::new(pattern);
+    let ast = parser.parse_alternation()?;
+    if parser.pos != parser.chars.len() {
+        return Err(parser.error("unexpected trailing input"));
     }
-    let mut chars = pattern.chars();
-    let first = chars.next().unwrap();
-    if chars.next().is_some() {
-        return Err(ParseError {
-            message: "multi-character patterns are not yet supported".into(),
-            position: 1,
-        });
-    }
-    Ok(Ast::Literal(first))
+    Ok(ast)
 }
 
 #[cfg(test)]
@@ -97,7 +177,10 @@ mod tests {
     }
 
     #[test]
-    fn multi_character_pattern_is_rejected_for_now() {
-        assert!(parse("ab").is_err());
+    fn concatenation_parses_as_a_sequence() {
+        assert_eq!(
+            parse("ab").unwrap(),
+            Ast::Concat(vec![Ast::Literal('a'), Ast::Literal('b')])
+        );
     }
 }
