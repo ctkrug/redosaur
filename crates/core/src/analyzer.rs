@@ -247,6 +247,21 @@ mod tests {
     }
 
     #[test]
+    fn moderate_growth_classifies_suspicious_without_truncating() {
+        // (a?){20}a{20} trips the structural pre-filter (a bounded a? nested
+        // in a bounded outer repeat still looks like a nested repeat), but
+        // its measured step growth across probes stays moderate (~2.7x) and
+        // never comes close to the 2,000,000-step probe ceiling. Every other
+        // Catastrophic-classifying test in this file hits the ceiling and
+        // returns early, so without this test the growth-ratio comparisons
+        // in `classify` (as opposed to the ceiling-truncation shortcut) had
+        // no coverage at all — a mutation to either threshold comparison
+        // survived the full suite undetected.
+        let ast = parse("(a?){20}a{20}").unwrap();
+        assert_eq!(classify(&ast), Risk::Suspicious);
+    }
+
+    #[test]
     fn dot_based_nested_quantifier_classifies_catastrophic() {
         // (.+)+ is a very common real-world ReDoS shape; it only
         // classifies correctly if the worst-case generator can find a
