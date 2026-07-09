@@ -2,6 +2,7 @@
 // top-bar mute toggle. The demo itself lives in demo.js.
 
 import { wasmReady } from "./wasm-loader.js";
+import { setMuted } from "./audio.js";
 
 const statusValue = document.getElementById("engine-status-value");
 const statusLine = document.getElementById("engine-status");
@@ -25,6 +26,7 @@ const muteToggle = document.getElementById("mute-toggle");
 function applyMuteState(muted) {
   muteToggle.setAttribute("aria-pressed", String(muted));
   muteToggle.setAttribute("aria-label", muted ? "Unmute sound effects" : "Mute sound effects");
+  setMuted(muted);
 }
 
 function initMuteToggle() {
