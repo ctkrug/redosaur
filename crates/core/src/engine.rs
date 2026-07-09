@@ -287,6 +287,19 @@ mod tests {
     }
 
     #[test]
+    fn exact_zero_repeat_matches_only_the_empty_string() {
+        // a{0} — the degenerate case: the node can never actually run, so
+        // it must behave exactly like Ast::Empty.
+        let ast = Ast::Repeat {
+            node: Box::new(Ast::Literal('a')),
+            min: 0,
+            max: Some(0),
+        };
+        assert!(run(&ast, "").matched);
+        assert!(!run(&ast, "a").matched);
+    }
+
+    #[test]
     fn nested_quantifier_backtracks_through_every_grouping() {
         // (a+)+ against "aaa" has no trailing mismatch, so it must match —
         // but only after the engine considers (and rejects) every way of
