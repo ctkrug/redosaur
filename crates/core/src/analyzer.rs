@@ -262,6 +262,32 @@ mod tests {
     }
 
     #[test]
+    fn high_growth_classifies_catastrophic_without_truncating() {
+        // (a{1,2})+ never hits the 2,000,000-step probe ceiling (it tops
+        // out under 1.3M at the largest probe) but its measured growth
+        // ratio is over 2,000x — a Catastrophic verdict reached purely via
+        // the growth-ratio comparison, not the ceiling-truncation
+        // shortcut every other Catastrophic test in this file takes.
+        let ast = parse("(a{1,2})+").unwrap();
+        assert_eq!(classify(&ast), Risk::Catastrophic);
+    }
+
+    #[test]
+    fn structurally_flagged_but_measured_safe_pattern_classifies_safe() {
+        // (a{1,2}){1,2} trips the structural pre-filter — a bounded
+        // variable-length repeat nested in another repeat looks exactly
+        // like the (a+)+ shape — but both repeats are so tightly bounded
+        // that measured growth is flat (1.0x across every probe length).
+        // This is the tool's core premise proven in the safe direction:
+        // the pre-filter only ever seeds a candidate, and measurement can
+        // clear it all the way down to Safe, not just downgrade it to
+        // Suspicious.
+        let ast = parse("(a{1,2}){1,2}").unwrap();
+        assert!(has_ambiguous_repeat(&ast));
+        assert_eq!(classify(&ast), Risk::Safe);
+    }
+
+    #[test]
     fn dot_based_nested_quantifier_classifies_catastrophic() {
         // (.+)+ is a very common real-world ReDoS shape; it only
         // classifies correctly if the worst-case generator can find a
