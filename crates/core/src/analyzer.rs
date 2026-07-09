@@ -31,7 +31,7 @@ pub enum Risk {
 }
 
 /// Strips wrapping groups down to the node they contain.
-fn peel_groups(ast: &Ast) -> &Ast {
+pub(crate) fn peel_groups(ast: &Ast) -> &Ast {
     match ast {
         Ast::Group(inner) => peel_groups(inner),
         other => other,
