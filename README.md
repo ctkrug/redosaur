@@ -61,18 +61,27 @@ steps to fail."
 
 ## Status
 
-Early scaffold — see [`docs/VISION.md`](docs/VISION.md) for the full design and
-[`docs/BACKLOG.md`](docs/BACKLOG.md) for the build plan.
+The core engine, ReDoS analyzer, worst-case generator, and WASM bridge are built and tested; the
+site's regex tester is wired up end to end for arbitrary patterns (not just a fixed demo). Safe
+rewrite suggestions (Epic 3) are still ahead — see [`docs/VISION.md`](docs/VISION.md) for the
+full design and [`docs/BACKLOG.md`](docs/BACKLOG.md) for the build plan.
 
 ## Development
 
 ```sh
 # run the core engine's test suite (no WASM toolchain required)
-cd crates/core && cargo test
+cargo test -p redosaur-core
 
-# build the WASM bridge (requires the wasm32-unknown-unknown target)
+# build the WASM bridge (requires the wasm32-unknown-unknown target + wasm-bindgen-cli
+# matching the wasm-bindgen version in Cargo.lock)
 rustup target add wasm32-unknown-unknown
-cd crates/wasm && cargo build --target wasm32-unknown-unknown --release
+cargo install wasm-bindgen-cli --version <matching Cargo.lock version>
+cargo build -p redosaur-wasm --target wasm32-unknown-unknown --release
+wasm-bindgen --target web --out-dir site/pkg \
+  target/wasm32-unknown-unknown/release/redosaur_wasm.wasm
+
+# serve the static site (site/pkg is a build artifact, not checked in)
+cd site && python3 -m http.server
 ```
 
 ## License
