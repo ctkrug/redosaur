@@ -798,8 +798,7 @@ mod tests {
     fn to_pattern_round_trips_through_parse() {
         for pattern in [
             "a", "ab", "a|b", "a*", "a+", "a?", "a{3}", "a{2,}", "a{1,20}", "(ab)+", "(a|b)*",
-            "(?:ab)+",
-            "[a-z]+", "^a$",
+            "(?:ab)+", "[a-z]+", "^a$",
         ] {
             let ast = parse(pattern).unwrap();
             let rendered = to_pattern(&ast);
