@@ -188,6 +188,15 @@ mod tests {
     }
 
     #[test]
+    fn non_overlapping_alternation_under_repeat_is_not_flagged() {
+        // (a|b)+ — distinct, non-overlapping branches under a repeat is
+        // exactly the shape branches_overlap must clear: two structurally
+        // different alternatives can't be re-split against each other the
+        // way (a|a)+'s identical branches can.
+        assert!(!has_ambiguous_repeat(&parse("(a|b)+").unwrap()));
+    }
+
+    #[test]
     fn nested_quantifier_through_non_capturing_group_is_flagged() {
         // peel_groups must see through (?:...) exactly like (...) — the
         // parser normalizes both to the same Group node (parser.rs).
