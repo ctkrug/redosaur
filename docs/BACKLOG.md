@@ -24,7 +24,7 @@ before anything optional gets built.
   - Malformed input (unbalanced parens, dangling quantifier) returns a `ParseError` with a
     position — never panics; at least 2 malformed-pattern tests confirm this.
 
-- [ ] **1.3 — Full instrumented backtracking engine**
+- [x] **1.3 — Full instrumented backtracking engine**
   - `engine::run` correctly matches/rejects against Concat, Alternation, Repeat, and Group nodes
     (not just Empty/Literal), verified by representative test strings per construct.
   - A configurable step ceiling (default 5,000,000) halts execution and returns
