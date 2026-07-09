@@ -65,6 +65,28 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
+/// Ranges for the `\d`/`\w`/`\s` shorthand classes and their negations
+/// (`\D`/`\W`/`\S`), shared between a top-level escape (`parse_escape`) and
+/// an escape inside a `[...]` character class (`parse_char_class`). Returns
+/// `(negated, ranges)`, or `None` if `c` isn't a shorthand-class letter.
+fn shorthand_class(c: char) -> Option<(bool, Vec<(char, char)>)> {
+    match c {
+        'd' => Some((false, vec![('0', '9')])),
+        'D' => Some((true, vec![('0', '9')])),
+        'w' => Some((false, vec![('a', 'z'), ('A', 'Z'), ('0', '9'), ('_', '_')])),
+        'W' => Some((true, vec![('a', 'z'), ('A', 'Z'), ('0', '9'), ('_', '_')])),
+        's' => Some((
+            false,
+            vec![(' ', ' '), ('\t', '\t'), ('\n', '\n'), ('\r', '\r')],
+        )),
+        'S' => Some((
+            true,
+            vec![(' ', ' '), ('\t', '\t'), ('\n', '\n'), ('\r', '\r')],
+        )),
+        _ => None,
+    }
+}
+
 /// Recursive-descent parser over a regex pattern's chars.
 ///
 /// Grammar:
@@ -276,22 +298,7 @@ impl Parser {
         let c = self
             .advance()
             .ok_or_else(|| self.error("dangling escape at end of pattern"))?;
-        let class = match c {
-            'd' => Some((false, vec![('0', '9')])),
-            'D' => Some((true, vec![('0', '9')])),
-            'w' => Some((false, vec![('a', 'z'), ('A', 'Z'), ('0', '9'), ('_', '_')])),
-            'W' => Some((true, vec![('a', 'z'), ('A', 'Z'), ('0', '9'), ('_', '_')])),
-            's' => Some((
-                false,
-                vec![(' ', ' '), ('\t', '\t'), ('\n', '\n'), ('\r', '\r')],
-            )),
-            'S' => Some((
-                true,
-                vec![(' ', ' '), ('\t', '\t'), ('\n', '\n'), ('\r', '\r')],
-            )),
-            _ => None,
-        };
-        match class {
+        match shorthand_class(c) {
             Some((negated, ranges)) => Ok(Ast::CharClass(CharClass { negated, ranges })),
             None => Ok(Ast::Literal(c)),
         }
