@@ -61,10 +61,11 @@ steps to fail."
 
 ## Status
 
-The core engine, ReDoS analyzer, worst-case generator, and WASM bridge are built and tested; the
-site's regex tester is wired up end to end for arbitrary patterns (not just a fixed demo). Safe
-rewrite suggestions (Epic 3) are still ahead — see [`docs/VISION.md`](docs/VISION.md) for the
-full design and [`docs/BACKLOG.md`](docs/BACKLOG.md) for the build plan.
+The core engine, ReDoS analyzer, worst-case generator, rewrite suggester, and WASM bridge are
+built and tested; the site's regex tester is wired up end to end for arbitrary patterns (not
+just a fixed demo), including the "suggest fix" side-by-side before/after trace and synthesized
+SFX. See [`docs/VISION.md`](docs/VISION.md) for the full design and
+[`docs/BACKLOG.md`](docs/BACKLOG.md) for the build plan.
 
 ## Development
 
