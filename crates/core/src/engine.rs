@@ -101,6 +101,18 @@ fn match_node(
             }
         }
         Ast::Concat(nodes) => match_concat(nodes, input, pos, counters, k),
+        Ast::Group(inner) => match_node(inner, input, pos, counters, k),
+        Ast::Alternation(branches) => {
+            for branch in branches {
+                if match_node(branch, input, pos, counters, k) {
+                    return true;
+                }
+                if counters.truncated {
+                    return false;
+                }
+            }
+            false
+        }
         _ => false,
     }
 }
@@ -181,5 +193,31 @@ mod tests {
         assert!(run(&ast, "ab").matched);
         assert!(!run(&ast, "ba").matched);
         assert!(!run(&ast, "a").matched);
+    }
+
+    #[test]
+    fn group_matches_its_inner_node() {
+        let ast = Ast::Group(Box::new(Ast::Literal('a')));
+        assert!(run(&ast, "a").matched);
+    }
+
+    #[test]
+    fn alternation_matches_any_branch() {
+        let ast = Ast::Alternation(vec![Ast::Literal('a'), Ast::Literal('b')]);
+        assert!(run(&ast, "a").matched);
+        assert!(run(&ast, "b").matched);
+        assert!(!run(&ast, "c").matched);
+    }
+
+    #[test]
+    fn alternation_backtracks_into_later_branches() {
+        // First branch ("a") matches a prefix but leaves "b" unconsumed
+        // under fullmatch semantics, so the engine must fall through to
+        // the second branch ("ab") to succeed.
+        let ast = Ast::Alternation(vec![
+            Ast::Literal('a'),
+            Ast::Concat(vec![Ast::Literal('a'), Ast::Literal('b')]),
+        ]);
+        assert!(run(&ast, "ab").matched);
     }
 }
