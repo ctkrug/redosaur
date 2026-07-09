@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  core:
+    name: core — fmt, clippy, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: fmt check
+        run: cargo fmt -p redosaur-core -- --check
+      - name: clippy
+        run: cargo clippy -p redosaur-core --all-targets -- -D warnings
+      - name: test
+        run: cargo test -p redosaur-core
+
+  wasm:
+    name: wasm — build + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: clippy
+        run: cargo clippy -p redosaur-wasm --target wasm32-unknown-unknown -- -D warnings
+      - name: build
+        run: cargo build -p redosaur-wasm --target wasm32-unknown-unknown --release
