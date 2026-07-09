@@ -105,6 +105,14 @@ mod tests {
     }
 
     #[test]
+    fn flattens_nested_quantifier_through_non_capturing_group() {
+        assert_eq!(
+            suggest(&parse("(?:a+)+").unwrap(), "(?:a+)+"),
+            Some("a+".to_string())
+        );
+    }
+
+    #[test]
     fn flattens_nested_star_of_star() {
         assert_eq!(
             suggest(&parse("(a*)*").unwrap(), "(a*)*"),
