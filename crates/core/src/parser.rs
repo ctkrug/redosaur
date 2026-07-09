@@ -329,6 +329,95 @@ pub fn parse(pattern: &str) -> Result<Ast, ParseError> {
     Ok(ast)
 }
 
+const METACHARS: &str = ".^$*+?()[]{}|\\";
+
+/// Render `ast` back into regex source, escaping literals that would
+/// otherwise be read as metacharacters. Used by [`crate::rewrite`] to turn a
+/// transformed AST back into a pattern string the caller (and the WASM
+/// bridge) can re-parse and re-run.
+pub fn to_pattern(ast: &Ast) -> String {
+    match ast {
+        Ast::Empty => String::new(),
+        Ast::Literal(c) => render_literal(*c),
+        Ast::CharClass(class) => render_char_class(class),
+        Ast::AnchorStart => "^".to_string(),
+        Ast::AnchorEnd => "$".to_string(),
+        Ast::Concat(nodes) => nodes.iter().map(render_concat_member).collect(),
+        Ast::Alternation(branches) => branches
+            .iter()
+            .map(to_pattern)
+            .collect::<Vec<_>>()
+            .join("|"),
+        Ast::Group(inner) => format!("({})", to_pattern(inner)),
+        Ast::Repeat { node, min, max } => {
+            format!(
+                "{}{}",
+                render_repeat_operand(node),
+                render_quantifier(*min, *max)
+            )
+        }
+    }
+}
+
+fn render_literal(c: char) -> String {
+    if METACHARS.contains(c) {
+        format!("\\{c}")
+    } else {
+        c.to_string()
+    }
+}
+
+fn render_char_class(class: &CharClass) -> String {
+    if class.negated && class.ranges.is_empty() {
+        return ".".to_string();
+    }
+    let mut out = String::from("[");
+    if class.negated {
+        out.push('^');
+    }
+    for &(lo, hi) in &class.ranges {
+        if lo == hi {
+            out.push(lo);
+        } else {
+            out.push(lo);
+            out.push('-');
+            out.push(hi);
+        }
+    }
+    out.push(']');
+    out
+}
+
+/// A concat member needs grouping only if it's an alternation — otherwise
+/// it would swallow the rest of the sequence as extra branches.
+fn render_concat_member(ast: &Ast) -> String {
+    match ast {
+        Ast::Alternation(_) => format!("({})", to_pattern(ast)),
+        other => to_pattern(other),
+    }
+}
+
+/// A repeat's operand needs grouping if it's an alternation or a multi-node
+/// concat — otherwise the quantifier would bind to just the last atom.
+fn render_repeat_operand(ast: &Ast) -> String {
+    match ast {
+        Ast::Alternation(_) => format!("({})", to_pattern(ast)),
+        Ast::Concat(nodes) if nodes.len() > 1 => format!("({})", to_pattern(ast)),
+        other => to_pattern(other),
+    }
+}
+
+fn render_quantifier(min: u32, max: Option<u32>) -> String {
+    match (min, max) {
+        (0, None) => "*".to_string(),
+        (1, None) => "+".to_string(),
+        (0, Some(1)) => "?".to_string(),
+        (min, None) => format!("{{{min},}}"),
+        (min, Some(max)) if min == max => format!("{{{min}}}"),
+        (min, Some(max)) => format!("{{{min},{max}}}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -585,6 +674,38 @@ mod tests {
     #[test]
     fn dangling_escape_is_a_parse_error() {
         assert!(parse("\\").is_err());
+    }
+
+    #[test]
+    fn to_pattern_round_trips_through_parse() {
+        for pattern in [
+            "a", "ab", "a|b", "a*", "a+", "a?", "a{3}", "a{2,}", "a{1,20}", "(ab)+", "(a|b)*",
+            "[a-z]+", "^a$",
+        ] {
+            let ast = parse(pattern).unwrap();
+            let rendered = to_pattern(&ast);
+            assert_eq!(
+                parse(&rendered).unwrap(),
+                ast,
+                "expected {pattern} to round-trip via {rendered}"
+            );
+        }
+    }
+
+    #[test]
+    fn to_pattern_escapes_metacharacters() {
+        assert_eq!(to_pattern(&Ast::Literal('.')), "\\.");
+        assert_eq!(to_pattern(&Ast::Literal('+')), "\\+");
+        assert_eq!(to_pattern(&Ast::Literal('a')), "a");
+    }
+
+    #[test]
+    fn to_pattern_renders_dot_from_negated_empty_class() {
+        let ast = Ast::CharClass(CharClass {
+            negated: true,
+            ranges: vec![],
+        });
+        assert_eq!(to_pattern(&ast), ".");
     }
 
     #[test]
