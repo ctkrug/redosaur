@@ -86,6 +86,25 @@ function nextFrame() {
   return new Promise((resolve) => requestAnimationFrame(resolve));
 }
 
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Reveals the worst-case input in a handful of chunks rather than pasting
+// it instantly, building anticipation before the counter starts — per
+// docs/DESIGN.md's juice plan. Skips the stagger under reduced motion.
+async function revealWorstCase(text) {
+  if (prefersReducedMotion || text.length === 0) {
+    worstCaseEl.textContent = text;
+    return;
+  }
+  const CHUNK_COUNT = 6;
+  const chunkSize = Math.max(1, Math.ceil(text.length / CHUNK_COUNT));
+  worstCaseEl.textContent = "";
+  for (let i = 0; i < text.length; i += chunkSize) {
+    worstCaseEl.textContent += text.slice(i, i + chunkSize);
+    await new Promise((resolve) => setTimeout(resolve, 70));
+  }
+}
+
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -154,7 +173,7 @@ async function runDemo(pattern) {
       return;
     }
 
-    worstCaseEl.textContent = worstCase;
+    await revealWorstCase(worstCase);
     const result = await measureSteps(wasm, pattern, worstCase);
     await animateCounter(result.steps_so_far);
     setGauge(risk.toLowerCase());
