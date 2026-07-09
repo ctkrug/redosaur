@@ -39,6 +39,20 @@ const GAUGE_LABELS = {
 
 let running = false;
 
+// The most recently completed run's pattern/worst-case input/step count —
+// the "before" side of the suggest-fix comparison (3.2) re-uses this
+// instead of re-measuring the original pattern from scratch.
+let lastRun = null;
+
+function resetFixPanel() {
+  lastRun = null;
+  suggestBtn.disabled = true;
+  fixPanelEl.hidden = true;
+  fixCompareEl.hidden = true;
+  fixEmptyEl.hidden = true;
+  fixConfirmEl.hidden = true;
+}
+
 function setError(message) {
   if (message) {
     errorEl.textContent = message;
