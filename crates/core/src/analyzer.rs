@@ -164,6 +164,18 @@ mod tests {
     }
 
     #[test]
+    fn nested_quantifier_through_non_capturing_group_is_flagged() {
+        // peel_groups must see through (?:...) exactly like (...) — the
+        // parser normalizes both to the same Group node (parser.rs).
+        assert!(has_ambiguous_repeat(&parse("(?:a+)+").unwrap()));
+    }
+
+    #[test]
+    fn non_capturing_grouped_concat_plus_is_not_flagged() {
+        assert!(!has_ambiguous_repeat(&parse("(?:ab)+").unwrap()));
+    }
+
+    #[test]
     fn pathological_patterns_classify_catastrophic() {
         for pattern in ["(a+)+", "(a*)*", "(a+)*", "(a|a)*"] {
             let ast = parse(pattern).unwrap();
