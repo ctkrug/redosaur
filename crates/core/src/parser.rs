@@ -1,8 +1,8 @@
 //! Regex -> AST parser. Supports literals, concatenation, alternation
-//! (`|`), quantifiers (`*`, `+`, `?`, `{m,n}`), groups (`(...)`),
-//! character classes (`[...]`, `.`, `\d`/`\w`/`\s` and negations), and
-//! anchors (`^`, `$`). Malformed input returns a positioned `ParseError`
-//! rather than panicking.
+//! (`|`), quantifiers (`*`, `+`, `?`, `{m,n}`), capturing and non-capturing
+//! groups (`(...)`, `(?:...)`), character classes (`[...]`, `.`, `\d`/`\w`/
+//! `\s` and negations), and anchors (`^`, `$`). Malformed input returns a
+//! positioned `ParseError` rather than panicking.
 
 use std::fmt;
 
@@ -72,7 +72,7 @@ impl std::error::Error for ParseError {}
 /// alternation := concat ('|' concat)*
 /// concat      := quantified_atom*
 /// quantified_atom := atom ('*' | '+' | '?' | '{' m (',' n?)? '}')?
-/// atom        := literal | '(' alternation ')' | '[' class_item* ']'
+/// atom        := literal | '(' ('?:')? alternation ')' | '[' class_item* ']'
 ///              | '^' | '$' | '.' | '\' escape
 /// ```
 struct Parser {
@@ -216,6 +216,19 @@ impl Parser {
             None => Err(self.error("expected an atom but found end of pattern")),
             Some('(') => {
                 self.advance();
+                if self.peek() == Some('?') {
+                    self.advance();
+                    // `(?:...)` — a non-capturing group. This crate never
+                    // tracks captures either way, so it parses identically
+                    // to `(...)`; anything else after `(?` (lookaround,
+                    // inline flags) isn't supported.
+                    if self.advance() != Some(':') {
+                        return Err(self.error(
+                            "unsupported group syntax: only non-capturing groups (?:...) \
+                             are supported (no lookaround or inline flags)",
+                        ));
+                    }
+                }
                 let inner = self.parse_alternation()?;
                 if self.advance() != Some(')') {
                     return Err(self.error("unbalanced parenthesis: expected ')'"));
