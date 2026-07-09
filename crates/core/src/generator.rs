@@ -133,4 +133,13 @@ mod tests {
     fn representative_char_of_empty_is_none() {
         assert_eq!(representative_char(&Ast::Empty), None);
     }
+
+    #[test]
+    fn zero_width_nodes_accept_no_char() {
+        // Empty, ^, and $ never consume input, so no character can be
+        // "accepted" by them for worst-case generation's purposes.
+        for ast in [Ast::Empty, Ast::AnchorStart, Ast::AnchorEnd] {
+            assert!(!char_is_accepted(&ast, 'a'));
+        }
+    }
 }
