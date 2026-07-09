@@ -54,16 +54,40 @@ fn branches_overlap(branches: &[Ast]) -> bool {
     false
 }
 
+/// Can `ast` match strings of more than one possible length — does it
+/// contain a repeat whose count isn't pinned to an exact number (i.e.
+/// `min != max`)? A repeated body with variable length lets the *same*
+/// input be split across the outer repeat's iterations in more than one
+/// way, which is the same source of ambiguity as a directly-nested repeat
+/// even when it's buried inside a `Concat` alongside other elements — e.g.
+/// `(\w+\s?)*` (docs/VISION.md's own canonical example): the outer `*`
+/// isn't wrapped around a bare repeat, but `\w+` inside it is still
+/// variable-length, so a run of word characters can be split across outer
+/// iterations exponentially many ways.
+fn has_variable_length_repeat(ast: &Ast) -> bool {
+    match ast {
+        Ast::Repeat { node, min, max } => *max != Some(*min) || has_variable_length_repeat(node),
+        Ast::Concat(nodes) | Ast::Alternation(nodes) => {
+            nodes.iter().any(has_variable_length_repeat)
+        }
+        Ast::Group(inner) => has_variable_length_repeat(inner),
+        Ast::Empty | Ast::Literal(_) | Ast::CharClass(_) | Ast::AnchorStart | Ast::AnchorEnd => {
+            false
+        }
+    }
+}
+
 /// Does `ast` contain a repeat whose body can match the same input in
 /// more than one way — the structural shape (nested quantifiers,
-/// overlapping alternation under a repeat) behind catastrophic
-/// backtracking?
+/// overlapping alternation under a repeat, or any variable-length
+/// sub-repeat under a repeat) behind catastrophic backtracking?
 pub fn has_ambiguous_repeat(ast: &Ast) -> bool {
     match ast {
         Ast::Repeat { node, .. } => {
             let inner = peel_groups(node);
             let flagged = matches!(inner, Ast::Repeat { .. })
-                || matches!(inner, Ast::Alternation(branches) if branches_overlap(branches));
+                || matches!(inner, Ast::Alternation(branches) if branches_overlap(branches))
+                || has_variable_length_repeat(node);
             flagged || has_ambiguous_repeat(node)
         }
         Ast::Concat(nodes) | Ast::Alternation(nodes) => nodes.iter().any(has_ambiguous_repeat),
@@ -176,6 +200,23 @@ mod tests {
     }
 
     #[test]
+    fn variable_length_repeat_buried_in_a_concat_is_flagged() {
+        // (\w+\s?)* — docs/VISION.md's own canonical example. The outer *
+        // isn't wrapped directly around a repeat or an alternation; \w+ is
+        // nested inside a two-element Concat instead. Before
+        // has_variable_length_repeat, this was a false negative: a
+        // genuinely catastrophic pattern the pre-filter never flagged.
+        assert!(has_ambiguous_repeat(&parse(r"(\w+\s?)*").unwrap()));
+    }
+
+    #[test]
+    fn fixed_length_repeat_buried_in_a_concat_is_not_flagged() {
+        // Every sub-repeat has min == max (fixed length), so the body
+        // can only ever match one length — no split ambiguity.
+        assert!(!has_ambiguous_repeat(&parse(r"(a{2}b{3})+").unwrap()));
+    }
+
+    #[test]
     fn pathological_patterns_classify_catastrophic() {
         for pattern in ["(a+)+", "(a*)*", "(a+)*", "(a|a)*"] {
             let ast = parse(pattern).unwrap();
@@ -211,6 +252,16 @@ mod tests {
         // classifies correctly if the worst-case generator can find a
         // char '.' rejects to force a fullmatch failure (see generator.rs).
         let ast = parse("(.+)+").unwrap();
+        assert_eq!(classify(&ast), Risk::Catastrophic);
+    }
+
+    #[test]
+    fn word_and_optional_space_repeat_classifies_catastrophic() {
+        // (\w+\s?)* — docs/VISION.md's canonical "misses genuinely
+        // dangerous patterns" example. Without has_variable_length_repeat
+        // this classified Safe, because has_ambiguous_repeat never even
+        // ran the engine to measure it.
+        let ast = parse(r"(\w+\s?)*").unwrap();
         assert_eq!(classify(&ast), Risk::Catastrophic);
     }
 }
