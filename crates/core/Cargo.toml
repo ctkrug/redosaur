@@ -1,0 +1,9 @@
+[package]
+name = "redosaur-core"
+description = "Instrumented backtracking regex engine and ReDoS analyzer for ReDoSaur"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
