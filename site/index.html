@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReDoSaur — watch a regex explode</title>
+  <meta
+    name="description"
+    content="Paste a regex and watch an instrumented backtracking engine prove catastrophic ReDoS risk in real time — then suggests a safe rewrite."
+  />
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2310140f'/%3E%3Cpath d='M9 22 L9 10 L14 10 L14 22 M9 16 L14 16 M18 22 L18 10 L23 10 M18 16 L22 16' stroke='%2339ff6a' stroke-width='2.4' fill='none' stroke-linecap='square'/%3E%3C/svg%3E"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="wordmark wordmark__flicker" href="./">
+      <svg class="wordmark__glyph" viewBox="0 0 32 32" aria-hidden="true">
+        <path
+          d="M9 22 L9 10 L14 10 L14 22 M9 16 L14 16 M18 22 L18 10 L23 10 M18 16 L22 16"
+          stroke="currentColor"
+          stroke-width="2.4"
+          fill="none"
+          stroke-linecap="square"
+        />
+      </svg>
+      ReDoSaur
+    </a>
+    <button
+      class="mute-toggle"
+      type="button"
+      id="mute-toggle"
+      aria-pressed="false"
+      aria-label="Mute sound effects"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none">
+        <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
+        <path
+          d="M16 8a5 5 0 0 1 0 8"
+          stroke="currentColor"
+          stroke-width="1.6"
+          fill="none"
+          stroke-linecap="round"
+        />
+      </svg>
+    </button>
+  </header>
+
+  <main>
+    <h1 class="tagline">Paste a regex. Watch it <em>explode</em>.</h1>
+    <p class="lede">
+      ReDoSaur runs your pattern through an actual instrumented backtracking engine — not a
+      heuristic linter — counts every real backtracking step, generates a genuine worst-case
+      input, and shows the exponential blowup as a live counter. Then it suggests a fix and
+      proves the counter stops.
+    </p>
+
+    <section class="panel" aria-label="engine status">
+      <p class="panel__label">Engine status</p>
+      <p class="status-line" id="engine-status">
+        <span>WASM module</span>
+        <span class="status-line__value" id="engine-status-value">checking&hellip;</span>
+      </p>
+    </section>
+
+    <section class="panel" aria-label="build plan">
+      <p class="panel__label">Build plan</p>
+      <ul class="epics">
+        <li><strong>Epic 1 — Core Engine &amp; Wow-Moment Demo</strong>Live catastrophic-backtracking demo, full parser + engine, chunked WASM bridge.</li>
+        <li><strong>Epic 2 — ReDoS Detection &amp; Risk Classification</strong>Ambiguity detection, worst-case generation, measured-growth risk gauge.</li>
+        <li><strong>Epic 3 — Safe Rewrite &amp; Fix Confirmation</strong>Rewrite rules and a side-by-side before/after proof.</li>
+        <li><strong>Epic 4 — Polish, Design &amp; Ship</strong>Breakpoint polish, brand/a11y pass, static build + deploy readiness.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    Early scaffold — see
+    <a href="https://github.com/ctkrug/redosaur/blob/main/docs/VISION.md">docs/VISION.md</a>
+    and
+    <a href="https://github.com/ctkrug/redosaur/blob/main/docs/BACKLOG.md">docs/BACKLOG.md</a>.
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
