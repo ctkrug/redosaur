@@ -223,11 +223,52 @@ impl Parser {
             Some('*') | Some('+') | Some('?') => {
                 Err(self.error("dangling quantifier with no preceding atom"))
             }
+            Some('[') => self.parse_char_class(),
             Some(c) => {
                 self.advance();
                 Ok(Ast::Literal(c))
             }
         }
+    }
+
+    /// `[abc]`, `[^abc]`, `[a-z0-9]` — a bracketed set of chars/ranges.
+    fn parse_char_class(&mut self) -> Result<Ast, ParseError> {
+        self.advance(); // consume '['
+        let negated = if self.peek() == Some('^') {
+            self.advance();
+            true
+        } else {
+            false
+        };
+        let mut ranges = Vec::new();
+        loop {
+            match self.peek() {
+                None => return Err(self.error("unbalanced character class: expected ']'")),
+                Some(']') => {
+                    self.advance();
+                    break;
+                }
+                Some(_) => {
+                    let lo = self.advance().unwrap();
+                    if self.peek() == Some('-') && self.chars.get(self.pos + 1) != Some(&']') {
+                        self.advance(); // consume '-'
+                        let hi = self
+                            .advance()
+                            .ok_or_else(|| self.error("unbalanced character class"))?;
+                        if hi < lo {
+                            return Err(self.error("character class range is out of order"));
+                        }
+                        ranges.push((lo, hi));
+                    } else {
+                        ranges.push((lo, lo));
+                    }
+                }
+            }
+        }
+        if ranges.is_empty() {
+            return Err(self.error("character class must not be empty"));
+        }
+        Ok(Ast::CharClass(CharClass { negated, ranges }))
     }
 }
 
@@ -391,5 +432,76 @@ mod tests {
         assert!(parse("a{2,1}").is_err());
         assert!(parse("a{}").is_err());
         assert!(parse("a{2").is_err());
+    }
+
+    #[test]
+    fn char_class_of_single_chars() {
+        assert_eq!(
+            parse("[abc]").unwrap(),
+            Ast::CharClass(CharClass {
+                negated: false,
+                ranges: vec![('a', 'a'), ('b', 'b'), ('c', 'c')],
+            })
+        );
+    }
+
+    #[test]
+    fn char_class_range() {
+        assert_eq!(
+            parse("[a-z]").unwrap(),
+            Ast::CharClass(CharClass {
+                negated: false,
+                ranges: vec![('a', 'z')],
+            })
+        );
+    }
+
+    #[test]
+    fn char_class_negation() {
+        assert_eq!(
+            parse("[^0-9]").unwrap(),
+            Ast::CharClass(CharClass {
+                negated: true,
+                ranges: vec![('0', '9')],
+            })
+        );
+    }
+
+    #[test]
+    fn char_class_trailing_dash_is_literal() {
+        assert_eq!(
+            parse("[a-]").unwrap(),
+            Ast::CharClass(CharClass {
+                negated: false,
+                ranges: vec![('a', 'a'), ('-', '-')],
+            })
+        );
+    }
+
+    #[test]
+    fn unbalanced_char_class_is_a_parse_error() {
+        assert!(parse("[abc").is_err());
+    }
+
+    #[test]
+    fn empty_char_class_is_a_parse_error() {
+        assert!(parse("[]").is_err());
+    }
+
+    #[test]
+    fn char_class_matches_honors_negation() {
+        let digits = CharClass {
+            negated: false,
+            ranges: vec![('0', '9')],
+        };
+        assert!(digits.matches('5'));
+        assert!(!digits.matches('a'));
+
+        let not_digits = CharClass {
+            negated: true,
+            ranges: vec![('0', '9')],
+        };
+        assert!(!not_digits.matches('5'));
+        assert!(not_digits.matches('a'));
     }
 }
