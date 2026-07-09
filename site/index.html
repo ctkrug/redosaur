@@ -98,9 +98,11 @@
             <span class="gauge__label" id="gauge-label">Idle</span>
           </div>
         </div>
+
+        <button class="suggest-btn" id="suggest-btn" type="button" disabled>Suggest fix ⚙</button>
       </section>
 
-      <aside class="rail" aria-label="example patterns">
+      <aside class="rail" aria-label="example patterns and suggested fix">
         <p class="panel__label">Try a pattern</p>
         <div class="chip-row" id="example-chips">
           <button class="chip" type="button" data-pattern="(a+)+" aria-pressed="false">(a+)+</button>
@@ -114,6 +116,33 @@
           ReDoSaur parses each pattern into a real AST and runs it through an instrumented
           backtracking engine — the same evaluation strategy PCRE, Python, and JavaScript use.
         </p>
+
+        <div class="fix-panel" id="fix-panel" hidden>
+          <p class="panel__label">Suggested fix</p>
+          <div class="fix-compare" id="fix-compare" hidden>
+            <div class="fix-trace fix-trace--before">
+              <span class="fix-trace__tag">Before</span>
+              <code class="fix-trace__pattern" id="fix-before-pattern"></code>
+              <span class="fix-trace__steps" id="fix-before-steps">0</span>
+            </div>
+            <div class="fix-trace fix-trace--after">
+              <span class="fix-trace__tag">After</span>
+              <code class="fix-trace__pattern" id="fix-after-pattern"></code>
+              <span class="fix-trace__steps" id="fix-after-steps">0</span>
+            </div>
+            <p class="fix-confirm" id="fix-confirm" role="status" aria-live="polite" hidden>
+              &#10003; Fix confirmed — blowup eliminated
+            </p>
+          </div>
+          <div class="fix-empty" id="fix-empty" hidden>
+            <p class="fix-empty__title">No automated fix yet</p>
+            <p class="fix-empty__hint">
+              Detection succeeded, but this pattern's ambiguity doesn't match a known rewrite
+              rule (nested quantifiers, duplicate alternation branches) — those are the only
+              shapes ReDoSaur can safely rewrite so far.
+            </p>
+          </div>
+        </div>
       </aside>
     </div>
 
