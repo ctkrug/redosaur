@@ -237,9 +237,15 @@ impl Parser {
             }
             Some('.') => {
                 self.advance();
+                // Matches any character except '\n', matching the
+                // conventional (non-dotall) behavior of PCRE/JS/Python's
+                // `.` — an unconditionally-matches-everything `.` can never
+                // be forced to fail a fullmatch, which breaks worst-case
+                // generation for any nested-quantifier pattern built on it
+                // (e.g. `(.+)+`, a common real-world ReDoS shape).
                 Ok(Ast::CharClass(CharClass {
                     negated: true,
-                    ranges: vec![],
+                    ranges: vec![('\n', '\n')],
                 }))
             }
             Some('\\') => self.parse_escape(),
@@ -368,7 +374,7 @@ fn render_literal(c: char) -> String {
 }
 
 fn render_char_class(class: &CharClass) -> String {
-    if class.negated && class.ranges.is_empty() {
+    if class.negated && class.ranges == [('\n', '\n')] {
         return ".".to_string();
     }
     let mut out = String::from("[");
@@ -633,12 +639,12 @@ mod tests {
     }
 
     #[test]
-    fn dot_matches_any_char_via_negated_empty_class() {
+    fn dot_matches_any_char_except_newline() {
         assert_eq!(
             parse(".").unwrap(),
             Ast::CharClass(CharClass {
                 negated: true,
-                ranges: vec![],
+                ranges: vec![('\n', '\n')],
             })
         );
     }
@@ -700,12 +706,23 @@ mod tests {
     }
 
     #[test]
-    fn to_pattern_renders_dot_from_negated_empty_class() {
+    fn to_pattern_renders_dot_from_negated_newline_class() {
         let ast = Ast::CharClass(CharClass {
             negated: true,
-            ranges: vec![],
+            ranges: vec![('\n', '\n')],
         });
         assert_eq!(to_pattern(&ast), ".");
+    }
+
+    #[test]
+    fn dot_does_not_match_newline() {
+        let dot = parse(".").unwrap();
+        let Ast::CharClass(class) = dot else {
+            panic!("expected a CharClass");
+        };
+        assert!(!class.matches('\n'));
+        assert!(class.matches('a'));
+        assert!(class.matches('!'));
     }
 
     #[test]
