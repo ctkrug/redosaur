@@ -152,6 +152,11 @@ mod tests {
     }
 
     #[test]
+    fn no_suggestion_for_empty_pattern() {
+        assert_eq!(suggest(&Ast::Empty, ""), None);
+    }
+
+    #[test]
     fn no_suggestion_for_non_overlapping_alternation_under_repeat() {
         assert_eq!(suggest(&parse("(a|b)*").unwrap(), "(a|b)*"), None);
     }
