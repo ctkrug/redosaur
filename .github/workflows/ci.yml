@@ -52,6 +52,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: wasm-bindgen-cli-0.2.126
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - name: build wasm
         run: cargo build -p redosaur-wasm --target wasm32-unknown-unknown --release
       - name: install wasm-bindgen-cli (pinned to Cargo.lock's wasm-bindgen version)
@@ -77,4 +80,57 @@ jobs:
                       pkg/redosaur_wasm.js pkg/redosaur_wasm_bg.wasm; do
             curl -sf "http://127.0.0.1:8123/redosaur/$path" > /dev/null
           done
+          kill "$server_pid"
+      - name: browser smoke test — the WASM engine must actually boot and the demo must run
+        # The asset-reachability check above only proves each file is
+        # fetchable over HTTP; it never executes wasm-loader.js's dynamic
+        # `import(...)`, so a broken relative path between site/js and
+        # site/pkg (exactly what shipped and passed CI once already) went
+        # undetected. This drives a real browser against the built,
+        # subpath-served site and fails on any console/page error or if the
+        # engine never comes online.
+        run: |
+          npm install --no-save playwright@1
+          npx playwright install --with-deps chromium
+          mkdir -p www/redosaur
+          cp -r site/. www/redosaur/
+          python3 -m http.server 8124 --directory www &
+          server_pid=$!
+          sleep 1
+          cat > /tmp/smoke.cjs <<'NODE'
+          const { chromium } = require("playwright");
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            const errors = [];
+            page.on("pageerror", (e) => errors.push(e.message));
+            page.on("console", (m) => {
+              if (m.type() === "error") errors.push(m.text());
+            });
+            await page.goto("http://127.0.0.1:8124/redosaur/index.html", {
+              waitUntil: "networkidle",
+            });
+            await page.waitForFunction(
+              () =>
+                document
+                  .getElementById("engine-status-value")
+                  ?.textContent?.includes("online"),
+              { timeout: 10000 }
+            );
+            await page.click("#run-btn");
+            await page.waitForFunction(
+              () => document.getElementById("risk-gauge")?.dataset.risk === "catastrophic",
+              { timeout: 10000 }
+            );
+            await browser.close();
+            if (errors.length) {
+              console.error("console/page errors during smoke test:", errors);
+              process.exit(1);
+            }
+          })().catch((err) => {
+            console.error(err);
+            process.exit(1);
+          });
+          NODE
+          node /tmp/smoke.cjs
           kill "$server_pid"
