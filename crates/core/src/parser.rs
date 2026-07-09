@@ -160,8 +160,52 @@ impl Parser {
                     max: Some(1),
                 })
             }
+            Some('{') => self.parse_bounded_repeat(atom),
             _ => Ok(atom),
         }
+    }
+
+    /// `{m}`, `{m,}`, or `{m,n}` following an already-parsed atom.
+    fn parse_bounded_repeat(&mut self, atom: Ast) -> Result<Ast, ParseError> {
+        self.advance(); // consume '{'
+        let min = self.parse_number()?;
+        let max = if self.peek() == Some(',') {
+            self.advance();
+            if self.peek() == Some('}') {
+                None
+            } else {
+                Some(self.parse_number()?)
+            }
+        } else {
+            Some(min)
+        };
+        if self.advance() != Some('}') {
+            return Err(self.error("malformed repeat: expected '}'"));
+        }
+        if let Some(max) = max {
+            if max < min {
+                return Err(self.error("repeat max must be >= min"));
+            }
+        }
+        Ok(Ast::Repeat {
+            node: Box::new(atom),
+            min,
+            max,
+        })
+    }
+
+    fn parse_number(&mut self) -> Result<u32, ParseError> {
+        let start = self.pos;
+        while matches!(self.peek(), Some(c) if c.is_ascii_digit()) {
+            self.advance();
+        }
+        if self.pos == start {
+            return Err(self.error("expected a number in repeat bounds"));
+        }
+        let digits: String = self.chars[start..self.pos].iter().collect();
+        digits
+            .parse()
+            .map_err(|_| self.error("repeat bound is not a valid number"))
     }
 
     fn parse_atom(&mut self) -> Result<Ast, ParseError> {
@@ -304,5 +348,48 @@ mod tests {
     fn dangling_quantifier_is_a_parse_error() {
         assert!(parse("*a").is_err());
         assert!(parse("+").is_err());
+    }
+
+    #[test]
+    fn exact_count_repeat() {
+        assert_eq!(
+            parse("a{3}").unwrap(),
+            Ast::Repeat {
+                node: Box::new(Ast::Literal('a')),
+                min: 3,
+                max: Some(3),
+            }
+        );
+    }
+
+    #[test]
+    fn open_ended_repeat() {
+        assert_eq!(
+            parse("a{2,}").unwrap(),
+            Ast::Repeat {
+                node: Box::new(Ast::Literal('a')),
+                min: 2,
+                max: None,
+            }
+        );
+    }
+
+    #[test]
+    fn bounded_range_repeat() {
+        assert_eq!(
+            parse("a{1,20}").unwrap(),
+            Ast::Repeat {
+                node: Box::new(Ast::Literal('a')),
+                min: 1,
+                max: Some(20),
+            }
+        );
+    }
+
+    #[test]
+    fn malformed_bounded_repeat_is_a_parse_error() {
+        assert!(parse("a{2,1}").is_err());
+        assert!(parse("a{}").is_err());
+        assert!(parse("a{2").is_err());
     }
 }
