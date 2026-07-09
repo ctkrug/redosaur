@@ -744,6 +744,20 @@ mod tests {
     }
 
     #[test]
+    fn negated_char_class_with_embedded_shorthand_and_range() {
+        // [^\da-c] — the class's own negation is independent of the
+        // shorthand's polarity: \d and a-c merge into one positive range
+        // set first, and the leading '^' negates the whole union.
+        let ast = parse(r"[^\da-c]").unwrap();
+        let Ast::CharClass(class) = ast else {
+            panic!("expected a CharClass");
+        };
+        assert!(!class.matches('5'));
+        assert!(!class.matches('b'));
+        assert!(class.matches('x'));
+    }
+
+    #[test]
     fn char_class_escaped_bracket_is_a_literal_member() {
         assert_eq!(
             parse(r"[\]a]").unwrap(),
