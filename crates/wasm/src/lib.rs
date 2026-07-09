@@ -97,5 +97,5 @@ pub fn classify_risk(pattern: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn suggest_rewrite(pattern: &str) -> Result<Option<String>, JsValue> {
     let ast = parser::parse(pattern).map_err(parse_error_to_js)?;
-    Ok(redosaur_core::rewrite::suggest(&ast, pattern))
+    Ok(redosaur_core::rewrite::suggest(&ast))
 }

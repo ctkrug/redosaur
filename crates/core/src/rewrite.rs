@@ -8,7 +8,7 @@ use crate::parser::{self, Ast};
 /// Suggest a safer, equivalent-intent rewrite of `ast`, if one of the known
 /// rules applies. `None` means detection succeeded but no automated fix is
 /// known yet for this shape.
-pub fn suggest(ast: &Ast, _pattern: &str) -> Option<String> {
+pub fn suggest(ast: &Ast) -> Option<String> {
     flatten_nested_quantifier(ast)
         .or_else(|| dedup_overlapping_alternation(ast))
         .as_ref()
@@ -90,7 +90,7 @@ mod tests {
 
     fn suggested_ast(pattern: &str) -> Ast {
         let ast = parse(pattern).unwrap();
-        let rewritten = suggest(&ast, pattern).unwrap_or_else(|| {
+        let rewritten = suggest(&ast).unwrap_or_else(|| {
             panic!("expected a rewrite suggestion for {pattern}");
         });
         parse(&rewritten).unwrap()
@@ -98,50 +98,32 @@ mod tests {
 
     #[test]
     fn flattens_nested_plus_of_plus() {
-        assert_eq!(
-            suggest(&parse("(a+)+").unwrap(), "(a+)+"),
-            Some("a+".to_string())
-        );
+        assert_eq!(suggest(&parse("(a+)+").unwrap()), Some("a+".to_string()));
     }
 
     #[test]
     fn flattens_nested_quantifier_through_non_capturing_group() {
-        assert_eq!(
-            suggest(&parse("(?:a+)+").unwrap(), "(?:a+)+"),
-            Some("a+".to_string())
-        );
+        assert_eq!(suggest(&parse("(?:a+)+").unwrap()), Some("a+".to_string()));
     }
 
     #[test]
     fn flattens_nested_star_of_star() {
-        assert_eq!(
-            suggest(&parse("(a*)*").unwrap(), "(a*)*"),
-            Some("a*".to_string())
-        );
+        assert_eq!(suggest(&parse("(a*)*").unwrap()), Some("a*".to_string()));
     }
 
     #[test]
     fn flattens_plus_of_star_to_star() {
-        assert_eq!(
-            suggest(&parse("(a+)*").unwrap(), "(a+)*"),
-            Some("a*".to_string())
-        );
+        assert_eq!(suggest(&parse("(a+)*").unwrap()), Some("a*".to_string()));
     }
 
     #[test]
     fn flattens_star_of_plus_to_star() {
-        assert_eq!(
-            suggest(&parse("(a*)+").unwrap(), "(a*)+"),
-            Some("a*".to_string())
-        );
+        assert_eq!(suggest(&parse("(a*)+").unwrap()), Some("a*".to_string()));
     }
 
     #[test]
     fn dedupes_overlapping_alternation() {
-        assert_eq!(
-            suggest(&parse("(a|a)*").unwrap(), "(a|a)*"),
-            Some("a*".to_string())
-        );
+        assert_eq!(suggest(&parse("(a|a)*").unwrap()), Some("a*".to_string()));
     }
 
     #[test]
@@ -151,7 +133,7 @@ mod tests {
         // Alternation (a|b)* rather than collapsing to a bare repeat like
         // the two-branch (a|a)* case above.
         assert_eq!(
-            suggest(&parse("(a|a|b)*").unwrap(), "(a|a|b)*"),
+            suggest(&parse("(a|a|b)*").unwrap()),
             Some("(a|b)*".to_string())
         );
     }
@@ -159,18 +141,18 @@ mod tests {
     #[test]
     fn no_suggestion_for_safe_patterns() {
         for pattern in ["a+", "[a-z]+", "(ab)+", "a{1,20}"] {
-            assert_eq!(suggest(&parse(pattern).unwrap(), pattern), None);
+            assert_eq!(suggest(&parse(pattern).unwrap()), None);
         }
     }
 
     #[test]
     fn no_suggestion_for_empty_pattern() {
-        assert_eq!(suggest(&Ast::Empty, ""), None);
+        assert_eq!(suggest(&Ast::Empty), None);
     }
 
     #[test]
     fn no_suggestion_for_non_overlapping_alternation_under_repeat() {
-        assert_eq!(suggest(&parse("(a|b)*").unwrap(), "(a|b)*"), None);
+        assert_eq!(suggest(&parse("(a|b)*").unwrap()), None);
     }
 
     #[test]
