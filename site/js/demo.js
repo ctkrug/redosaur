@@ -13,6 +13,15 @@ const stepCounterEl = document.getElementById("step-counter");
 const gaugeEl = document.getElementById("risk-gauge");
 const gaugeLabelEl = document.getElementById("gauge-label");
 const chips = document.querySelectorAll(".chip");
+const suggestBtn = document.getElementById("suggest-btn");
+const fixPanelEl = document.getElementById("fix-panel");
+const fixCompareEl = document.getElementById("fix-compare");
+const fixEmptyEl = document.getElementById("fix-empty");
+const fixBeforePatternEl = document.getElementById("fix-before-pattern");
+const fixBeforeStepsEl = document.getElementById("fix-before-steps");
+const fixAfterPatternEl = document.getElementById("fix-after-pattern");
+const fixAfterStepsEl = document.getElementById("fix-after-steps");
+const fixConfirmEl = document.getElementById("fix-confirm");
 
 // Repetitions of the generated adversarial unit fed into the engine — high
 // enough that a catastrophic pattern clears 1,000,000 steps comfortably.
