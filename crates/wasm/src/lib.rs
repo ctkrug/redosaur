@@ -76,3 +76,17 @@ pub fn worst_case_input(pattern: &str, reps: u32) -> Result<String, JsValue> {
     let ast = parser::parse(pattern).map_err(parse_error_to_js)?;
     Ok(redosaur_core::generator::worst_case(&ast, reps as usize))
 }
+
+/// Parses `pattern` and classifies its ReDoS risk from measured step
+/// growth, returning `"Safe"`, `"Suspicious"`, or `"Catastrophic"`.
+#[wasm_bindgen]
+pub fn classify_risk(pattern: &str) -> Result<String, JsValue> {
+    let ast = parser::parse(pattern).map_err(parse_error_to_js)?;
+    let risk = redosaur_core::analyzer::classify(&ast);
+    Ok(match risk {
+        redosaur_core::analyzer::Risk::Safe => "Safe",
+        redosaur_core::analyzer::Risk::Suspicious => "Suspicious",
+        redosaur_core::analyzer::Risk::Catastrophic => "Catastrophic",
+    }
+    .to_string())
+}
