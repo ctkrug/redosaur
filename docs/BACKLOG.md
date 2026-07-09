@@ -74,7 +74,7 @@ before anything optional gets built.
 
 ## Epic 3 — Safe Rewrite & Fix Confirmation
 
-- [ ] **3.1 — Rewrite rules for common ambiguous shapes**
+- [x] **3.1 — Rewrite rules for common ambiguous shapes**
   - `rewrite::suggest` returns an equivalent-intent rewritten pattern for at least the
     nested-quantifier shape (e.g. `(a+)+` → a flattened `a+`) and the overlapping-alternation
     shape (e.g. `(a|a)*` → a deduplicated alternation).
@@ -82,14 +82,14 @@ before anything optional gets built.
     the original matches, and that it classifies Safe or Suspicious (never Catastrophic) via
     `analyzer::classify`.
 
-- [ ] **3.2 — Side-by-side before/after confirmation UI**
+- [x] **3.2 — Side-by-side before/after confirmation UI**
   - Clicking "suggest fix" runs the original and rewritten pattern's traces side-by-side against
     the same worst-case input, per `docs/DESIGN.md`'s juice plan (fast-finishing rewritten trace,
     "confirmed" pulse + chime).
   - For both rules from 3.1, the UI demonstrably shows the rewritten trace completing in under
     1,000 steps against an input where the original exceeded 100,000.
 
-- [ ] **3.3 — Graceful "no rewrite available" state**
+- [x] **3.3 — Graceful "no rewrite available" state**
   - When `rewrite::suggest` returns `None`, the UI shows a designed empty state (not blank, not
     an error) explaining detection succeeded but no automated fix exists yet.
   - QA confirms pasting a Catastrophic pattern outside the two known rewrite rules shows this
