@@ -43,13 +43,13 @@ before anything optional gets built.
 
 ## Epic 2 — ReDoS Detection & Risk Classification
 
-- [ ] **2.1 — Structural ambiguity detector seeds candidate risk patterns**
+- [x] **2.1 — Structural ambiguity detector seeds candidate risk patterns**
   - `analyzer` inspects the AST for nested/overlapping quantifiers (e.g. `(a+)+`, `(a|a)*`,
     `(a*)*`) and flags them as measurement candidates.
   - Unit tests confirm at least 4 known-pathological shapes are flagged as candidates, and at
     least 3 known-safe shapes (e.g. `a+`, `[a-z]+`, `(ab)+`) are not.
 
-- [ ] **2.2 — Worst-case input generator produces genuinely adversarial strings**
+- [x] **2.2 — Worst-case input generator produces genuinely adversarial strings**
   - `generator::worst_case` builds an input from a flagged-ambiguous AST designed to maximize
     backtracking (e.g. `n` repetitions of the ambiguous unit plus one non-matching trailing
     character), replacing the current fixed-placeholder implementation.
@@ -57,7 +57,7 @@ before anything optional gets built.
     engine at increasing `n` shows measurably superlinear growth (step count at n=20 is more
     than 4x the step count at n=10).
 
-- [ ] **2.3 — Growth measurement confirms risk empirically**
+- [x] **2.3 — Growth measurement confirms risk empirically**
   - `analyzer::classify` runs the engine against generated worst-case inputs at 2–3 increasing
     lengths and classifies Safe/Suspicious/Catastrophic from measured step growth, not AST shape
     alone.
